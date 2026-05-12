@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwKnowledgeChunkMapper">
+    <resultMap id="TdwKnowledgeChunkResult" type="TdwKnowledgeChunk">
+        <id property="chunkId" column="chunk_id"/>
+        <result property="knowledgeId" column="knowledge_id"/>
+        <result property="knowledgeFileId" column="knowledge_file_id"/>
+        <result property="chunkTitle" column="chunk_title"/>
+        <result property="chunkContent" column="chunk_content"/>
+        <result property="chunkType" column="chunk_type"/>
+        <result property="chunkIndex" column="chunk_index"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+    <sql id="selectChunkVo">
+        select chunk_id, knowledge_id, knowledge_file_id, chunk_title, chunk_content, chunk_type,
+               chunk_index, create_by, create_time, update_by, update_time, remark, del_flag
+        from tdw_knowledge_chunk
+    </sql>
+    <select id="selectKnowledgeChunkList" resultMap="TdwKnowledgeChunkResult">
+        <include refid="selectChunkVo"/>
+        <where>
+            del_flag = '0'
+            <if test="knowledgeId != null">and knowledge_id = #{knowledgeId}</if>
+            <if test="knowledgeFileId != null">and knowledge_file_id = #{knowledgeFileId}</if>
+            <if test="chunkType != null and chunkType != ''">and chunk_type = #{chunkType}</if>
+        </where>
+        order by knowledge_file_id asc, chunk_index asc, chunk_id asc
+    </select>
+    <select id="selectChunksByFileIds" resultMap="TdwKnowledgeChunkResult">
+        <include refid="selectChunkVo"/>
+        where del_flag = '0' and knowledge_file_id in
+        <foreach collection="fileIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        order by knowledge_file_id asc, chunk_index asc, chunk_id asc
+    </select>
+    <select id="selectChunksByIds" resultMap="TdwKnowledgeChunkResult">
+        <include refid="selectChunkVo"/>
+        where del_flag = '0' and chunk_id in
+        <foreach collection="chunkIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        order by knowledge_file_id asc, chunk_index asc, chunk_id asc
+    </select>
+    <insert id="insertKnowledgeChunk" parameterType="TdwKnowledgeChunk" useGeneratedKeys="true" keyProperty="chunkId">
+        insert into tdw_knowledge_chunk(knowledge_id, knowledge_file_id, chunk_title, chunk_content, chunk_type,
+        chunk_index, create_by, create_time, remark, del_flag)
+        values(#{knowledgeId}, #{knowledgeFileId}, #{chunkTitle}, #{chunkContent}, #{chunkType},
+        #{chunkIndex}, #{createBy}, #{createTime}, #{remark}, '0')
+    </insert>
+    <delete id="deleteChunksByFileId" parameterType="Long">
+        delete from tdw_knowledge_chunk where knowledge_file_id = #{knowledgeFileId}
+    </delete>
+    <delete id="deleteChunksByKnowledgeId" parameterType="Long">
+        delete from tdw_knowledge_chunk where knowledge_id = #{knowledgeId}
+    </delete>
+</mapper>

@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwOutlinesMapper">
+    
+    <resultMap type="TdwOutlines" id="TdwOutlinesResult">
+        <result property="id"    column="id"    />
+        <result property="bidId"    column="bid_id"    />
+        <result property="parentId"    column="parent_id"    />
+        <result property="level"    column="level"    />
+        <result property="title"    column="title"    />
+        <result property="sortNum"    column="sort_num"    />
+        <result property="wordLimit"    column="word_limit"    />
+    </resultMap>
+
+    <sql id="selectTdwOutlinesVo">
+        select id, bid_id, parent_id, level, title, sort_num, word_limit from tdw_outlines
+    </sql>
+
+    <select id="selectTdwOutlinesList" parameterType="TdwOutlines" resultMap="TdwOutlinesResult">
+        <include refid="selectTdwOutlinesVo"/>
+        <where>  
+            <if test="bidId != null "> and bid_id = #{bidId}</if>
+            <if test="parentId != null "> and parent_id = #{parentId}</if>
+            <if test="level != null "> and level = #{level}</if>
+            <if test="title != null  and title != ''"> and title = #{title}</if>
+            <if test="sortNum != null "> and sort_num = #{sortNum}</if>
+            <if test="wordLimit != null "> and word_limit = #{wordLimit}</if>
+        </where>
+    </select>
+    
+    <select id="selectTdwOutlinesById" parameterType="Long" resultMap="TdwOutlinesResult">
+        <include refid="selectTdwOutlinesVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectTdwOutlinesByLevel" parameterType="TdwOutlines" resultMap="TdwOutlinesResult">
+        SELECT * FROM tdw_outlines WHERE bid_id = #{bidId} AND level = #{level} ORDER BY sort_num ASC, id ASC
+    </select>
+
+    <select id="selectContentTitleOutlinesByAncestor" parameterType="Long" resultMap="TdwOutlinesResult">
+        select o.id, o.bid_id, o.parent_id, o.level, o.title, o.sort_num, o.word_limit
+        from tdw_outline_closure c
+                 inner join tdw_outlines o on c.descendant = o.id
+        where c.ancestor = #{outlineId}
+          and o.level = 3
+        order by c.depth desc, o.parent_id asc, o.sort_num asc, o.id asc
+    </select>
+
+    <select id="selectOutlinesByBidId" parameterType="Long" resultMap="TdwOutlinesResult">
+        select id, bid_id, parent_id, level, title, sort_num, word_limit
+        from tdw_outlines
+        where bid_id = #{bidId}
+        order by level asc, parent_id asc, sort_num asc, id asc
+    </select>
+
+    <select id="selectSiblings" resultMap="TdwOutlinesResult">
+        select id, bid_id, parent_id, level, title, sort_num, word_limit
+        from tdw_outlines
+        where bid_id = #{bidId}
+        <choose>
+            <when test="parentId != null">
+                and parent_id = #{parentId}
+            </when>
+            <otherwise>
+                and parent_id is null
+            </otherwise>
+        </choose>
+        order by sort_num asc, id asc
+    </select>
+
+    <select id="selectMaxSortNum" resultType="Integer">
+        select ifnull(max(sort_num), 0)
+        from tdw_outlines
+        where bid_id = #{bidId}
+        <choose>
+            <when test="parentId != null">
+                and parent_id = #{parentId}
+            </when>
+            <otherwise>
+                and parent_id is null
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectLevelSortNumById" parameterType="Long" resultMap="TdwOutlinesResult">
+        select id, bid_id, parent_id, level, sort_num from tdw_outlines where id = #{id}
+    </select>
+
+    <select id="selectIdsByBidId" parameterType="Long" resultType="Long">
+        select id from tdw_outlines where bid_id = #{bidId}
+    </select>
+
+    <insert id="insertTdwOutlines" parameterType="TdwOutlines" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_outlines
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="bidId != null">bid_id,</if>
+            <if test="parentId != null">parent_id,</if>
+            <if test="level != null">level,</if>
+            <if test="title != null and title != ''">title,</if>
+            <if test="sortNum != null">sort_num,</if>
+            <if test="wordLimit != null">word_limit,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="bidId != null">#{bidId},</if>
+            <if test="parentId != null">#{parentId},</if>
+            <if test="level != null">#{level},</if>
+            <if test="title != null and title != ''">#{title},</if>
+            <if test="sortNum != null">#{sortNum},</if>
+            <if test="wordLimit != null">#{wordLimit},</if>
+         </trim>
+    </insert>
+
+    <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tdw_outlines(bid_id, level, title, sort_num, word_limit) VALUES
+        <foreach collection='list' item='item' separator=','>
+            (#{item.bidId}, #{item.level}, #{item.title}, #{item.sortNum}, #{item.wordLimit})
+        </foreach>
+    </insert>
+
+<!--    <insert id="insertOutlineLeval1" parameterType="TdwOutlines" useGeneratedKeys="true" keyProperty="id">-->
+<!--        INSERT INTO tdw_outlines(bid_id, level, title, sort_num, word_limit)-->
+<!--        VALUES(#{bidId}, #{level}, #{title}, #{sortNum}, #{wordLimit});-->
+<!--    </insert>-->
+
+<!--    <insert id="insertOutlineLeval2" parameterType="TdwOutlines" useGeneratedKeys="true" keyProperty="id">-->
+<!--        INSERT INTO tdw_outlines(bid_id, parent_id, level, title, sort_num, word_limit)-->
+<!--        VALUES(#{bidId}, #{parentId}, #{level}, #{title}, #{sortNum}, #{wordLimit});-->
+<!--    </insert>-->
+
+
+    <update id="updateTdwOutlines" parameterType="TdwOutlines">
+        update tdw_outlines
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="bidId != null">bid_id = #{bidId},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="level != null">level = #{level},</if>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="sortNum != null">sort_num = #{sortNum},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="updateOutlineTitle">
+        update tdw_outlines set title = #{title} where id = #{id}
+    </update>
+
+    <update id="updateParentAndSort">
+        update tdw_outlines
+        set
+        <choose>
+            <when test="parentId != null">
+                parent_id = #{parentId},
+            </when>
+            <otherwise>
+                parent_id = null,
+            </otherwise>
+        </choose>
+            sort_num = #{sortNum}
+        where id = #{id}
+    </update>
+
+    <update id="updateSortNum">
+        update tdw_outlines set sort_num = #{sortNum} where id = #{id}
+    </update>
+
+    <update id="batchUpdateParentId" parameterType="TdwOutlines">
+        <foreach collection='list' item='item' separator=';'>
+            UPDATE tdw_outlines SET parent_id = #{item.parentId} WHERE id = #{item.id}
+        </foreach>
+    </update>
+
+    <update id="updateOutlineLeval1" parameterType="TdwOutlines">
+        update tdw_outlines SET sort_num = sort_num + 1 WHERE bid_id = #{bidId} and parent_id IS NULL AND sort_num >= #{sortNum}
+    </update>
+
+    <update id="updateOutlineLeval1Delete" parameterType="TdwOutlines">
+        update tdw_outlines SET sort_num = sort_num - 1 WHERE bid_id = #{bidId} and parent_id IS NULL AND sort_num > #{sortNum}
+    </update>
+
+    <update id="updateOutlineLeval2And3" parameterType="TdwOutlines">
+        update tdw_outlines SET sort_num = sort_num + 1 WHERE parent_id = #{parentId} AND sort_num >= #{sortNum}
+    </update>
+
+    <update id="updateOutlineLeval2And3Delete" parameterType="TdwOutlines">
+        update tdw_outlines SET sort_num = sort_num - 1 WHERE parent_id = #{parentId} AND sort_num > #{sortNum}
+    </update>
+
+    <delete id="deleteTdwOutlinesById" parameterType="Long">
+        delete from tdw_outlines where id = #{id}
+    </delete>
+
+    <delete id="deleteTdwOutlinesByIds" parameterType="String">
+        delete from tdw_outlines where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="batchDeleteByIds" parameterType="Long">
+        delete from tdw_outlines where id in
+        <foreach collection='list' item='id' open='(' separator=',' close=')'>
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

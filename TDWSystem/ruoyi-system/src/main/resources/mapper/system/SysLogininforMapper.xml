@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.SysLogininforMapper">
+
+	<resultMap type="SysLogininfor" id="SysLogininforResult">
+		<id     property="infoId"        column="info_id"           />
+		<result property="userName"      column="user_name"         />
+		<result property="unitId"      column="unit_id"         />
+		<result property="status"        column="status"            />
+		<result property="ipaddr"        column="ipaddr"            />
+		<result property="loginLocation" column="login_location"    />
+		<result property="browser"       column="browser"           />
+		<result property="os"            column="os"                />
+		<result property="msg"           column="msg"               />
+		<result property="loginTime"     column="login_time"        />
+	</resultMap>
+
+	<insert id="insertLogininfor" parameterType="SysLogininfor">
+		insert into sys_logininfor (user_name, unit_id, status, ipaddr, login_location, browser, os, msg, login_time)
+		values (#{userName},#{unitId}, #{status}, #{ipaddr}, #{loginLocation}, #{browser}, #{os}, #{msg}, sysdate())
+	</insert>
+	
+	<select id="selectLogininforList" parameterType="SysLogininfor" resultMap="SysLogininforResult">
+		select info_id, user_name, ipaddr, login_location, browser, os, status, msg, login_time from sys_logininfor
+		<where>
+			<if test="ipaddr != null and ipaddr != ''">
+				AND ipaddr like concat('%', #{ipaddr}, '%')
+			</if>
+			<if test="status != null and status != ''">
+				AND status = #{status}
+			</if>
+			<if test="userName != null and userName != ''">
+				AND user_name like concat('%', #{userName}, '%')
+			</if>
+			<if test="params.beginTime != null and params.beginTime != ''"><!-- 开始时间检索 -->
+				AND login_time &gt;= #{params.beginTime}
+			</if>
+			<if test="params.endTime != null and params.endTime != ''"><!-- 结束时间检索 -->
+				AND login_time &lt;= #{params.endTime}
+			</if>
+		</where>
+		order by info_id desc
+	</select>
+
+<!--	<select id="getUniqueVisitor" parameterType="Long"  resultType="Integer">-->
+<!--		select COUNT(*) AS total_count from sys_logininfor-->
+<!--		<where>-->
+<!--			<if test="unitId != null">AND unit_id = #{unitId}</if>-->
+<!--		</where>-->
+<!--	</select>-->
+
+<!--	<select id="getUniqueVisitor" parameterType="Long" resultType="java.util.Map">-->
+<!--		select-->
+<!--		DATE_FORMAT(login_time, '%Y-%m-%d') as day,-->
+<!--		COUNT(*) as total_count-->
+<!--		from sys_logininfor-->
+<!--		<where>-->
+<!--			<if test="unitId != null">AND unit_id = #{unitId}</if>-->
+<!--			AND login_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)-->
+<!--		</where>-->
+<!--		group by DATE_FORMAT(login_time, '%Y-%m-%d')-->
+<!--		order by day-->
+<!--	</select>-->
+
+	<select id="getUniqueVisitor" parameterType="Long" resultType="java.util.Map">
+		SELECT
+		date_dim.day as day,
+		COALESCE(COUNT(DISTINCT sli.info_id), 0) as total_count
+		FROM (
+		SELECT DATE_SUB(CURDATE(), INTERVAL 6 DAY) as day UNION ALL
+		SELECT DATE_SUB(CURDATE(), INTERVAL 5 DAY) as day UNION ALL
+		SELECT DATE_SUB(CURDATE(), INTERVAL 4 DAY) as day UNION ALL
+		SELECT DATE_SUB(CURDATE(), INTERVAL 3 DAY) as day UNION ALL
+		SELECT DATE_SUB(CURDATE(), INTERVAL 2 DAY) as day UNION ALL
+		SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY) as day UNION ALL
+		SELECT CURDATE() as day
+		) date_dim
+		LEFT JOIN sys_logininfor sli ON DATE_FORMAT(sli.login_time, '%Y-%m-%d') = date_dim.day
+		<if test="unitId != null">AND sli.unit_id = #{unitId}</if>
+		AND sli.login_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND sli.msg = '登录成功'
+		GROUP BY date_dim.day
+	</select>
+	
+	<delete id="deleteLogininforByIds" parameterType="Long">
+ 		delete from sys_logininfor where info_id in
+ 		<foreach collection="array" item="infoId" open="(" separator="," close=")">
+ 			#{infoId}
+        </foreach> 
+ 	</delete>
+    
+    <update id="cleanLogininfor">
+        truncate table sys_logininfor
+    </update>
+    
+</mapper> 

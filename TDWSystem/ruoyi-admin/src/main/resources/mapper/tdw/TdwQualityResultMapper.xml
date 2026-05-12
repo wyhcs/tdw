@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwQualityResultMapper">
+
+    <resultMap type="TdwQualityResult" id="TdwQualityResultResult">
+        <result property="id" column="id" />
+        <result property="taskId" column="task_id" />
+        <result property="bidId" column="bid_id" />
+        <result property="outlineId" column="outline_id" />
+        <result property="contentId" column="content_id" />
+        <result property="itemId" column="item_id" />
+        <result property="issueType" column="issue_type" />
+        <result property="severity" column="severity" />
+        <result property="issueTitle" column="issue_title" />
+        <result property="issueDesc" column="issue_desc" />
+        <result property="suggestion" column="suggestion" />
+        <result property="status" column="status" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="selectQualityResultVo">
+        select id, task_id, bid_id, outline_id, content_id, item_id, issue_type, severity, issue_title, issue_desc,
+               suggestion, status, create_by, create_time, update_by, update_time, remark, del_flag
+        from tdw_quality_result
+    </sql>
+
+    <select id="selectQualityResultById" parameterType="Long" resultMap="TdwQualityResultResult">
+        <include refid="selectQualityResultVo"/>
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectQualityResultList" parameterType="TdwQualityResult" resultMap="TdwQualityResultResult">
+        <include refid="selectQualityResultVo"/>
+        <where>
+            del_flag = '0'
+            <if test="taskId != null"> and task_id = #{taskId}</if>
+            <if test="bidId != null"> and bid_id = #{bidId}</if>
+            <if test="outlineId != null"> and outline_id = #{outlineId}</if>
+            <if test="contentId != null"> and content_id = #{contentId}</if>
+            <if test="issueType != null and issueType != ''"> and issue_type = #{issueType}</if>
+            <if test="severity != null and severity != ''"> and severity = #{severity}</if>
+            <if test="status != null and status != ''"> and status = #{status}</if>
+        </where>
+        order by severity desc, outline_id asc, content_id asc, id asc
+    </select>
+
+    <insert id="insertQualityResult" parameterType="TdwQualityResult" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_quality_result(task_id, bid_id, outline_id, content_id, item_id, issue_type, severity, issue_title,
+                                       issue_desc, suggestion, status, create_by, create_time, update_by, update_time, remark, del_flag)
+        values(#{taskId}, #{bidId}, #{outlineId}, #{contentId}, #{itemId}, #{issueType}, #{severity}, #{issueTitle},
+               #{issueDesc}, #{suggestion}, #{status}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+    </insert>
+
+    <insert id="batchInsertQualityResult" parameterType="java.util.List">
+        insert into tdw_quality_result(task_id, bid_id, outline_id, content_id, item_id, issue_type, severity, issue_title,
+                                       issue_desc, suggestion, status, create_by, create_time, update_by, update_time, remark, del_flag)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.taskId}, #{item.bidId}, #{item.outlineId}, #{item.contentId}, #{item.itemId}, #{item.issueType}, #{item.severity},
+             #{item.issueTitle}, #{item.issueDesc}, #{item.suggestion}, #{item.status}, #{item.createBy}, #{item.createTime},
+             #{item.updateBy}, #{item.updateTime}, #{item.remark}, #{item.delFlag})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByTaskId" parameterType="Long">
+        delete from tdw_quality_result where task_id = #{taskId}
+    </delete>
+
+    <delete id="deleteByTaskIds" parameterType="Long">
+        delete from tdw_quality_result where task_id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

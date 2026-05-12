@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwTenderParseReportMapper">
+
+    <resultMap type="TdwTenderParseReport" id="TdwTenderParseReportResult">
+        <result property="id" column="id" />
+        <result property="bidId" column="bid_id" />
+        <result property="tenderFileId" column="tender_file_id" />
+        <result property="projectName" column="project_name" />
+        <result property="requirementSummary" column="requirement_summary" />
+        <result property="scoreItems" column="score_items" />
+        <result property="reportContent" column="report_content" />
+        <result property="parseStatus" column="parse_status" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <select id="selectById" parameterType="Long" resultMap="TdwTenderParseReportResult">
+        select id, bid_id, tender_file_id, project_name, requirement_summary, score_items, report_content, parse_status, create_time, update_time
+        from tdw_tender_parse_report
+        where id = #{id}
+    </select>
+
+    <select id="selectByTenderFileId" parameterType="Long" resultMap="TdwTenderParseReportResult">
+        select id, bid_id, tender_file_id, project_name, requirement_summary, score_items, report_content, parse_status, create_time, update_time
+        from tdw_tender_parse_report
+        where tender_file_id = #{tenderFileId}
+        order by id desc
+        limit 1
+    </select>
+
+    <select id="selectLatestByBidId" parameterType="Long" resultMap="TdwTenderParseReportResult">
+        select id, bid_id, tender_file_id, project_name, requirement_summary, score_items, report_content, parse_status, create_time, update_time
+        from tdw_tender_parse_report
+        where bid_id = #{bidId}
+        order by id desc
+        limit 1
+    </select>
+
+    <insert id="insertParseReport" parameterType="TdwTenderParseReport" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_tender_parse_report(bid_id, tender_file_id, project_name, requirement_summary, score_items, report_content, parse_status, create_time, update_time)
+        values(#{bidId}, #{tenderFileId}, #{projectName}, #{requirementSummary}, #{scoreItems}, #{reportContent}, #{parseStatus}, #{createTime}, #{updateTime})
+    </insert>
+
+    <delete id="deleteByBidId" parameterType="Long">
+        delete from tdw_tender_parse_report where bid_id = #{bidId}
+    </delete>
+</mapper>

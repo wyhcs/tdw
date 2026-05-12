@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwQualityItemMapper">
+
+    <resultMap type="TdwQualityItem" id="TdwQualityItemResult">
+        <result property="id" column="id" />
+        <result property="frameworkId" column="framework_id" />
+        <result property="itemName" column="item_name" />
+        <result property="itemType" column="item_type" />
+        <result property="severity" column="severity" />
+        <result property="checkRule" column="check_rule" />
+        <result property="sortNum" column="sort_num" />
+        <result property="enabled" column="enabled" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="selectQualityItemVo">
+        select id, framework_id, item_name, item_type, severity, check_rule, sort_num, enabled,
+               create_by, create_time, update_by, update_time, remark, del_flag
+        from tdw_quality_item
+    </sql>
+
+    <select id="selectQualityItemById" parameterType="Long" resultMap="TdwQualityItemResult">
+        <include refid="selectQualityItemVo"/>
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectQualityItemList" parameterType="TdwQualityItem" resultMap="TdwQualityItemResult">
+        <include refid="selectQualityItemVo"/>
+        <where>
+            del_flag = '0'
+            <if test="frameworkId != null"> and framework_id = #{frameworkId}</if>
+            <if test="itemName != null and itemName != ''"> and item_name like concat('%', #{itemName}, '%')</if>
+            <if test="itemType != null and itemType != ''"> and item_type = #{itemType}</if>
+            <if test="enabled != null and enabled != ''"> and enabled = #{enabled}</if>
+        </where>
+        order by sort_num asc, id asc
+    </select>
+
+    <select id="selectEnabledItemsByFrameworkId" parameterType="Long" resultMap="TdwQualityItemResult">
+        <include refid="selectQualityItemVo"/>
+        where framework_id = #{frameworkId} and enabled = '1' and del_flag = '0'
+        order by sort_num asc, id asc
+    </select>
+
+    <select id="selectMaxSortNum" parameterType="Long" resultType="Integer">
+        select ifnull(max(sort_num), 0) from tdw_quality_item where framework_id = #{frameworkId} and del_flag = '0'
+    </select>
+
+    <insert id="insertQualityItem" parameterType="TdwQualityItem" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_quality_item(framework_id, item_name, item_type, severity, check_rule, sort_num, enabled,
+                                     create_by, create_time, update_by, update_time, remark, del_flag)
+        values(#{frameworkId}, #{itemName}, #{itemType}, #{severity}, #{checkRule}, #{sortNum}, #{enabled},
+               #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+    </insert>
+
+    <update id="updateQualityItem" parameterType="TdwQualityItem">
+        update tdw_quality_item
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="frameworkId != null">framework_id = #{frameworkId},</if>
+            <if test="itemName != null">item_name = #{itemName},</if>
+            <if test="itemType != null">item_type = #{itemType},</if>
+            <if test="severity != null">severity = #{severity},</if>
+            <if test="checkRule != null">check_rule = #{checkRule},</if>
+            <if test="sortNum != null">sort_num = #{sortNum},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteQualityItemByIds" parameterType="Long">
+        update tdw_quality_item set del_flag = '2', update_time = now() where id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByFrameworkIds" parameterType="Long">
+        update tdw_quality_item set del_flag = '2', update_time = now() where framework_id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwGalleryImageMapper">
+
+    <resultMap type="TdwGalleryImage" id="TdwGalleryImageResult">
+        <result property="id" column="id" />
+        <result property="galleryId" column="gallery_id" />
+        <result property="imageName" column="image_name" />
+        <result property="originalName" column="original_name" />
+        <result property="imageUrl" column="image_url" />
+        <result property="imageSize" column="image_size" />
+        <result property="imageType" column="image_type" />
+        <result property="width" column="width" />
+        <result property="height" column="height" />
+        <result property="description" column="description" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="selectGalleryImageVo">
+        select id, gallery_id, image_name, original_name, image_url, image_size, image_type, width, height, description,
+               create_by, create_time, update_by, update_time, remark, del_flag
+        from tdw_gallery_image
+    </sql>
+
+    <select id="selectGalleryImageById" parameterType="Long" resultMap="TdwGalleryImageResult">
+        <include refid="selectGalleryImageVo"/>
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectGalleryImageList" parameterType="TdwGalleryImage" resultMap="TdwGalleryImageResult">
+        <include refid="selectGalleryImageVo"/>
+        <where>
+            del_flag = '0'
+            <if test="galleryId != null"> and gallery_id = #{galleryId}</if>
+            <if test="imageName != null and imageName != ''"> and image_name like concat('%', #{imageName}, '%')</if>
+        </where>
+        order by create_time desc, id desc
+    </select>
+
+    <insert id="insertGalleryImage" parameterType="TdwGalleryImage" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_gallery_image(gallery_id, image_name, original_name, image_url, image_size, image_type, width, height,
+                                      description, create_by, create_time, update_by, update_time, remark, del_flag)
+        values(#{galleryId}, #{imageName}, #{originalName}, #{imageUrl}, #{imageSize}, #{imageType}, #{width}, #{height},
+               #{description}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+    </insert>
+
+    <update id="updateGalleryImage" parameterType="TdwGalleryImage">
+        update tdw_gallery_image
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="galleryId != null">gallery_id = #{galleryId},</if>
+            <if test="imageName != null">image_name = #{imageName},</if>
+            <if test="originalName != null">original_name = #{originalName},</if>
+            <if test="imageUrl != null">image_url = #{imageUrl},</if>
+            <if test="imageSize != null">image_size = #{imageSize},</if>
+            <if test="imageType != null">image_type = #{imageType},</if>
+            <if test="width != null">width = #{width},</if>
+            <if test="height != null">height = #{height},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteGalleryImageByIds" parameterType="Long">
+        update tdw_gallery_image set del_flag = '2', update_time = now() where id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByGalleryIds" parameterType="Long">
+        update tdw_gallery_image set del_flag = '2', update_time = now() where gallery_id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

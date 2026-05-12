@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwKnowledgeFileMapper">
+    <resultMap id="TdwKnowledgeFileResult" type="TdwKnowledgeFile">
+        <id property="knowledgeFileId" column="knowledge_file_id"/>
+        <result property="knowledgeId" column="knowledge_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="fileType" column="file_type"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="fileUsage" column="file_usage"/>
+        <result property="isTemplate" column="is_template"/>
+        <result property="parseStatus" column="parse_status"/>
+        <result property="imageStatus" column="image_status"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+    <sql id="selectFileVo">
+        select knowledge_file_id, knowledge_id, file_name, file_type, file_size, file_usage, is_template,
+               parse_status, image_status, create_by, create_time, update_by, update_time, remark, del_flag
+        from tdw_knowledge_file
+    </sql>
+    <select id="selectKnowledgeFileList" resultMap="TdwKnowledgeFileResult">
+        <include refid="selectFileVo"/>
+        <where>
+            del_flag = '0'
+            <if test="knowledgeId != null">and knowledge_id = #{knowledgeId}</if>
+            <if test="fileUsage != null and fileUsage != ''">and file_usage = #{fileUsage}</if>
+            <if test="isTemplate != null and isTemplate != ''">and is_template = #{isTemplate}</if>
+            <if test="parseStatus != null and parseStatus != ''">and parse_status = #{parseStatus}</if>
+        </where>
+        order by create_time desc, knowledge_file_id desc
+    </select>
+    <select id="selectKnowledgeFileById" parameterType="Long" resultMap="TdwKnowledgeFileResult">
+        <include refid="selectFileVo"/> where knowledge_file_id = #{knowledgeFileId} and del_flag = '0'
+    </select>
+    <select id="selectTemplateFiles" resultMap="TdwKnowledgeFileResult">
+        <include refid="selectFileVo"/>
+        <where>
+            del_flag = '0' and is_template = '1'
+            <if test="knowledgeId != null">and knowledge_id = #{knowledgeId}</if>
+        </where>
+        order by create_time desc, knowledge_file_id desc
+    </select>
+    <insert id="insertKnowledgeFile" parameterType="TdwKnowledgeFile" useGeneratedKeys="true" keyProperty="knowledgeFileId">
+        insert into tdw_knowledge_file(knowledge_id, file_name, file_type, file_size, file_usage, is_template,
+        parse_status, image_status, create_by, create_time, remark, del_flag)
+        values(#{knowledgeId}, #{fileName}, #{fileType}, #{fileSize}, #{fileUsage}, #{isTemplate},
+        #{parseStatus}, #{imageStatus}, #{createBy}, #{createTime}, #{remark}, '0')
+    </insert>
+    <update id="updateKnowledgeFile" parameterType="TdwKnowledgeFile">
+        update tdw_knowledge_file
+        <trim prefix="set" suffixOverrides=",">
+            <if test="fileName != null and fileName != ''">file_name = #{fileName},</if>
+            <if test="fileUsage != null and fileUsage != ''">file_usage = #{fileUsage},</if>
+            <if test="isTemplate != null and isTemplate != ''">is_template = #{isTemplate},</if>
+            <if test="parseStatus != null and parseStatus != ''">parse_status = #{parseStatus},</if>
+            <if test="imageStatus != null and imageStatus != ''">image_status = #{imageStatus},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where knowledge_file_id = #{knowledgeFileId}
+    </update>
+    <update id="deleteKnowledgeFilesByKnowledgeId" parameterType="Long">
+        update tdw_knowledge_file set del_flag = '2' where knowledge_id = #{knowledgeId}
+    </update>
+</mapper>

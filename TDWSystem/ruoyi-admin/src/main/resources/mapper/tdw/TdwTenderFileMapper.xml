@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwTenderFileMapper">
+
+    <resultMap type="TdwTenderFile" id="TdwTenderFileResult">
+        <result property="id" column="id" />
+        <result property="bidId" column="bid_id" />
+        <result property="fileName" column="file_name" />
+        <result property="originalName" column="original_name" />
+        <result property="fileUrl" column="file_url" />
+        <result property="fileSize" column="file_size" />
+        <result property="fileType" column="file_type" />
+        <result property="parseStatus" column="parse_status" />
+        <result property="parseReportId" column="parse_report_id" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <select id="selectById" parameterType="Long" resultMap="TdwTenderFileResult">
+        select id, bid_id, file_name, original_name, file_url, file_size, file_type, parse_status, parse_report_id, create_time, update_time
+        from tdw_tender_file
+        where id = #{id}
+    </select>
+
+    <select id="selectByBidId" parameterType="Long" resultMap="TdwTenderFileResult">
+        select id, bid_id, file_name, original_name, file_url, file_size, file_type, parse_status, parse_report_id, create_time, update_time
+        from tdw_tender_file
+        where bid_id = #{bidId}
+        order by create_time desc, id desc
+    </select>
+
+    <select id="selectTenderBidList" parameterType="TdwBids" resultMap="com.ruoyi.tdw.mapper.TdwBidsMapper.TdwBidsResult">
+        select distinct b.id, b.title, b.template_id, b.status, b.category, b.created_time, b.userid, b.deptid, b.unitid, b.note
+        from tdw_bids b
+                 inner join tdw_tender_file f on b.id = f.bid_id
+        <where>
+            <if test="title != null and title != ''"> and b.title like concat('%', #{title}, '%')</if>
+            <if test="category != null and category != ''"> and b.category = #{category}</if>
+            <if test="status != null"> and b.status = #{status}</if>
+        </where>
+        order by b.created_time desc, b.id desc
+    </select>
+
+    <insert id="insertTenderFile" parameterType="TdwTenderFile" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_tender_file(bid_id, file_name, original_name, file_url, file_size, file_type, parse_status, parse_report_id, create_time, update_time)
+        values(#{bidId}, #{fileName}, #{originalName}, #{fileUrl}, #{fileSize}, #{fileType}, #{parseStatus}, #{parseReportId}, #{createTime}, #{updateTime})
+    </insert>
+
+    <update id="updateParseStatus">
+        update tdw_tender_file
+        set parse_status = #{parseStatus},
+            parse_report_id = #{parseReportId},
+            update_time = now()
+        where id = #{id}
+    </update>
+
+    <delete id="deleteByBidId" parameterType="Long">
+        delete from tdw_tender_file where bid_id = #{bidId}
+    </delete>
+</mapper>

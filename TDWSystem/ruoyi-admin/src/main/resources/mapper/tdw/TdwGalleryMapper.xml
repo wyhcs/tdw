@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwGalleryMapper">
+
+    <resultMap type="TdwGallery" id="TdwGalleryResult">
+        <result property="id" column="id" />
+        <result property="galleryName" column="gallery_name" />
+        <result property="description" column="description" />
+        <result property="imageCount" column="image_count" />
+        <result property="coverUrl" column="cover_url" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="selectGalleryVo">
+        select id, gallery_name, description, image_count, cover_url, create_by, create_time, update_by, update_time, remark, del_flag
+        from tdw_gallery
+    </sql>
+
+    <select id="selectGalleryById" parameterType="Long" resultMap="TdwGalleryResult">
+        <include refid="selectGalleryVo"/>
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectGalleryList" parameterType="TdwGallery" resultMap="TdwGalleryResult">
+        <include refid="selectGalleryVo"/>
+        <where>
+            del_flag = '0'
+            <if test="galleryName != null and galleryName != ''"> and gallery_name like concat('%', #{galleryName}, '%')</if>
+        </where>
+        order by create_time desc, id desc
+    </select>
+
+    <insert id="insertGallery" parameterType="TdwGallery" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_gallery(gallery_name, description, image_count, cover_url, create_by, create_time, update_by, update_time, remark, del_flag)
+        values(#{galleryName}, #{description}, #{imageCount}, #{coverUrl}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+    </insert>
+
+    <update id="updateGallery" parameterType="TdwGallery">
+        update tdw_gallery
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="galleryName != null">gallery_name = #{galleryName},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="imageCount != null">image_count = #{imageCount},</if>
+            <if test="coverUrl != null">cover_url = #{coverUrl},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="updateImageStats" parameterType="Long">
+        update tdw_gallery g
+        set g.image_count = (select count(1) from tdw_gallery_image i where i.gallery_id = #{id} and i.del_flag = '0'),
+            g.cover_url = ifnull((select i.image_url from tdw_gallery_image i where i.gallery_id = #{id} and i.del_flag = '0' order by i.create_time desc, i.id desc limit 1), ''),
+            g.update_time = now()
+        where g.id = #{id}
+    </update>
+
+    <delete id="deleteGalleryByIds" parameterType="Long">
+        update tdw_gallery set del_flag = '2', update_time = now() where id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

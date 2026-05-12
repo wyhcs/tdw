@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwBidsMapper">
+    
+    <resultMap type="TdwBids" id="TdwBidsResult">
+        <result property="id"    column="id"    />
+        <result property="title"    column="title"    />
+        <result property="templateId"    column="template_id"    />
+        <result property="status"    column="status"    />
+        <result property="category"    column="category"    />
+        <result property="createdTime"    column="created_time"    />
+        <result property="userid"    column="userid"    />
+        <result property="deptid"    column="deptid"    />
+        <result property="unitid"    column="unitid"    />
+        <result property="note"    column="note"    />
+    </resultMap>
+
+    <sql id="selectTdwBidsVo">
+        select id, title, template_id, status, category, created_time, userid, deptid, unitid, note from tdw_bids
+    </sql>
+
+    <select id="selectTdwBidsList" parameterType="TdwBids" resultMap="TdwBidsResult">
+        <include refid="selectTdwBidsVo"/>
+        <where>  
+            <if test="title != null  and title != ''"> and title like concat('%', #{title}, '%')</if>
+            <if test="templateId != null "> and template_id = #{templateId}</if>
+            <if test="status != null "> and status = #{status}</if>
+            <if test="category != null "> and category = #{category}</if>
+            <if test="createdTime != null "> and created_time = #{createdTime}</if>
+            <if test="userid != null "> and userid = #{userid}</if>
+            <if test="deptid != null "> and deptid = #{deptid}</if>
+            <if test="unitid != null "> and unitid = #{unitid}</if>
+            <if test="note != null  and note != ''"> and note = #{note}</if>
+        </where>
+    </select>
+    
+    <select id="selectTdwBidsById" parameterType="Long" resultMap="TdwBidsResult">
+        <include refid="selectTdwBidsVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="getTitle" parameterType="Long" resultType="String">
+        select title from tdw_bids where id = #{id}
+    </select>
+
+    <insert id="insertTdwBids" parameterType="TdwBids" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_bids
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="title != null">title,</if>
+            <if test="templateId != null">template_id,</if>
+            <if test="status != null">status,</if>
+            <if test="category != null">category,</if>
+            <if test="createdTime != null">created_time,</if>
+            <if test="userid != null">userid,</if>
+            <if test="deptid != null">deptid,</if>
+            <if test="unitid != null">unitid,</if>
+            <if test="note != null">note,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="title != null">#{title},</if>
+            <if test="templateId != null">#{templateId},</if>
+            <if test="status != null">#{status},</if>
+            <if test="category != null">#{category},</if>
+            <if test="createdTime != null">#{createdTime},</if>
+            <if test="userid != null">#{userid},</if>
+            <if test="deptid != null">#{deptid},</if>
+            <if test="unitid != null">#{unitid},</if>
+            <if test="note != null">#{note},</if>
+         </trim>
+    </insert>
+
+    <update id="updateTdwBids" parameterType="TdwBids">
+        update tdw_bids
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="title != null">title = #{title},</if>
+            <if test="templateId != null">template_id = #{templateId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="category != null">category = #{category},</if>
+            <if test="createdTime != null">created_time = #{createdTime},</if>
+            <if test="userid != null">userid = #{userid},</if>
+            <if test="deptid != null">deptid = #{deptid},</if>
+            <if test="unitid != null">unitid = #{unitid},</if>
+            <if test="note != null">note = #{note},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTdwBidsById" parameterType="Long">
+        delete from tdw_bids where id = #{id}
+    </delete>
+
+    <delete id="deleteTdwBidsByIds" parameterType="String">
+        delete from tdw_bids where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

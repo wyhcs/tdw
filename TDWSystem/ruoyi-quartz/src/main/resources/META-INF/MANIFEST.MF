@@ -1,0 +1,56 @@
+Manifest-Version: 1.0
+Main-Class: 
+Class-Path: jakarta.activation-1.2.2.jar kaptcha-2.3.3.jar jackson-annot
+ ations-2.12.7.jar fontbox-2.0.26.jar jakarta.validation-api-2.0.2.jar n
+ etty-resolver-4.1.92.Final.jar spring-context-support-5.3.39.jar spring
+ -plugin-core-2.0.0.RELEASE.jar springfox-bean-validators-3.0.0.jar page
+ helper-spring-boot-autoconfigure-1.4.7.jar mapstruct-1.3.1.Final.jar ja
+ ckson-module-parameter-names-2.12.7.jar jna-platform-5.17.0.jar springf
+ ox-swagger2-3.0.0.jar jakarta.annotation-api-1.3.5.jar spring-data-redi
+ s-2.5.12.jar spring-boot-starter-json-2.5.15.jar swagger-models-1.6.2.j
+ ar javax.servlet-api-4.0.1.jar javax.activation-api-1.2.0.jar spring-bo
+ ot-starter-aop-2.5.15.jar slf4j-api-1.7.36.jar spring-data-keyvalue-2.5
+ .12.jar hibernate-validator-6.2.5.Final.jar snakeyaml-1.28.jar oshi-cor
+ e-6.8.2.jar log4j-api-2.17.2.jar spring-boot-starter-2.5.15.jar poi-4.1
+ .2.jar SparseBitSet-1.2.jar commons-collections4-4.4.jar springfox-spri
+ ng-webflux-3.0.0.jar commons-logging-1.2.jar spring-security-config-5.7
+ .12.jar jul-to-slf4j-1.7.36.jar jna-5.17.0.jar druid-spring-boot-starte
+ r-1.2.23.jar velocity-engine-core-2.3.jar spring-boot-starter-data-redi
+ s-2.5.15.jar lettuce-core-6.1.10.RELEASE.jar mysql-connector-j-8.0.33.j
+ ar swagger-annotations-2.1.2.jar netty-handler-4.1.92.Final.jar mybatis
+ -spring-boot-starter-2.3.1.jar spring-web-5.3.39.jar classmate-1.5.1.ja
+ r jakarta.xml.bind-api-2.3.3.jar spring-boot-starter-jdbc-2.5.15.jar sp
+ ringfox-boot-starter-3.0.0.jar jboss-logging-3.4.3.Final.jar druid-1.2.
+ 23.jar logback-core-1.2.13.jar spring-boot-starter-tomcat-2.5.15.jar sp
+ ringfox-swagger-common-3.0.0.jar commons-codec-1.15.jar spring-expressi
+ on-5.3.39.jar commons-io-2.19.0.jar poi-ooxml-4.1.2.jar commons-math3-3
+ .6.1.jar swagger-models-2.1.2.jar mybatis-3.5.13.jar spring-tx-5.3.39.j
+ ar log4j-to-slf4j-2.17.2.jar classgraph-4.8.83.jar spring-beans-5.3.39.
+ jar pdfbox-2.0.26.jar byte-buddy-1.10.22.jar spring-jdbc-5.3.39.jar spr
+ ing-security-web-5.7.12.jar spring-boot-starter-validation-2.5.15.jar n
+ etty-transport-native-unix-common-4.1.92.Final.jar spring-plugin-metada
+ ta-2.0.0.RELEASE.jar spring-boot-starter-logging-2.5.15.jar tomcat-embe
+ d-el-9.0.106.jar commons-lang3-3.12.0.jar jaxb-runtime-2.3.8.jar tomcat
+ -embed-websocket-9.0.106.jar jackson-core-2.12.7.jar netty-codec-4.1.92
+ .Final.jar spring-boot-2.5.15.jar spring-jcl-5.3.39.jar spring-boot-dev
+ tools-2.5.15.jar mchange-commons-java-0.2.15.jar pagehelper-5.3.3.jar s
+ pring-boot-starter-web-2.5.15.jar spring-data-commons-2.5.12.jar spring
+ -security-crypto-5.7.12.jar HikariCP-4.0.3.jar springfox-swagger-ui-3.0
+ .0.jar spring-security-core-5.7.12.jar spring-boot-autoconfigure-2.5.15
+ .jar commons-compress-1.19.jar spring-context-5.3.39.jar spring-aop-5.3
+ .39.jar UserAgentUtils-1.21.jar springfox-spring-webmvc-3.0.0.jar jaxb-
+ api-2.3.1.jar aspectjweaver-1.9.7.jar mybatis-spring-2.1.1.jar mybatis-
+ spring-boot-autoconfigure-2.3.1.jar quartz-2.3.2.jar xmlbeans-3.1.0.jar
+  springfox-oas-3.0.0.jar istack-commons-runtime-3.0.12.jar jjwt-0.9.1.j
+ ar jackson-databind-2.12.7.1.jar fastjson2-2.0.57.jar curvesapi-1.06.ja
+ r spring-webmvc-5.3.39.jar txw2-2.3.8.jar netty-buffer-4.1.92.Final.jar
+  springfox-spring-web-3.0.0.jar swagger-annotations-1.6.2.jar springfox
+ -core-3.0.0.jar reactor-core-3.4.29.jar reactive-streams-1.0.4.jar spri
+ ng-oxm-5.3.39.jar springfox-schema-3.0.0.jar springfox-data-rest-3.0.0.
+ jar springfox-spi-3.0.0.jar netty-transport-4.1.92.Final.jar tomcat-emb
+ ed-core-9.0.106.jar filters-2.0.235-1.jar poi-ooxml-schemas-4.1.2.jar s
+ pring-boot-starter-security-2.5.15.jar commons-pool2-2.9.0.jar logback-
+ classic-1.2.13.jar jackson-datatype-jdk8-2.12.7.jar jackson-datatype-js
+ r310-2.12.7.jar spring-core-5.3.39.jar netty-common-4.1.92.Final.jar pa
+ gehelper-spring-boot-starter-1.4.7.jar jsqlparser-4.5.jar
+

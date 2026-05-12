@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwDuplicateResultMapper">
+
+    <resultMap type="TdwDuplicateResult" id="TdwDuplicateResultResult">
+        <result property="id" column="id" />
+        <result property="taskId" column="task_id" />
+        <result property="bidId" column="bid_id" />
+        <result property="outlineId" column="outline_id" />
+        <result property="contentId" column="content_id" />
+        <result property="sourceType" column="source_type" />
+        <result property="sourceName" column="source_name" />
+        <result property="similarText" column="similar_text" />
+        <result property="sourceText" column="source_text" />
+        <result property="similarity" column="similarity" />
+        <result property="suggestion" column="suggestion" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="selectDuplicateResultVo">
+        select id, task_id, bid_id, outline_id, content_id, source_type, source_name, similar_text, source_text, similarity,
+               suggestion, create_by, create_time, update_by, update_time, remark, del_flag
+        from tdw_duplicate_result
+    </sql>
+
+    <select id="selectDuplicateResultById" parameterType="Long" resultMap="TdwDuplicateResultResult">
+        <include refid="selectDuplicateResultVo"/>
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectDuplicateResultList" parameterType="TdwDuplicateResult" resultMap="TdwDuplicateResultResult">
+        <include refid="selectDuplicateResultVo"/>
+        <where>
+            del_flag = '0'
+            <if test="taskId != null"> and task_id = #{taskId}</if>
+            <if test="bidId != null"> and bid_id = #{bidId}</if>
+            <if test="outlineId != null"> and outline_id = #{outlineId}</if>
+            <if test="contentId != null"> and content_id = #{contentId}</if>
+            <if test="sourceType != null and sourceType != ''"> and source_type = #{sourceType}</if>
+        </where>
+        order by similarity desc, outline_id asc, content_id asc, id asc
+    </select>
+
+    <insert id="batchInsertDuplicateResult" parameterType="java.util.List">
+        insert into tdw_duplicate_result(task_id, bid_id, outline_id, content_id, source_type, source_name, similar_text,
+                                         source_text, similarity, suggestion, create_by, create_time, update_by, update_time, remark, del_flag)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.taskId}, #{item.bidId}, #{item.outlineId}, #{item.contentId}, #{item.sourceType}, #{item.sourceName},
+             #{item.similarText}, #{item.sourceText}, #{item.similarity}, #{item.suggestion}, #{item.createBy}, #{item.createTime},
+             #{item.updateBy}, #{item.updateTime}, #{item.remark}, #{item.delFlag})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByTaskId" parameterType="Long">
+        delete from tdw_duplicate_result where task_id = #{taskId}
+    </delete>
+
+    <delete id="deleteByTaskIds" parameterType="Long">
+        delete from tdw_duplicate_result where task_id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

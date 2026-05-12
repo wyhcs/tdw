@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwQualityTaskMapper">
+
+    <resultMap type="TdwQualityTask" id="TdwQualityTaskResult">
+        <result property="id" column="id" />
+        <result property="taskName" column="task_name" />
+        <result property="bidId" column="bid_id" />
+        <result property="frameworkId" column="framework_id" />
+        <result property="sourceModule" column="source_module" />
+        <result property="status" column="status" />
+        <result property="totalCount" column="total_count" />
+        <result property="issueCount" column="issue_count" />
+        <result property="startTime" column="start_time" />
+        <result property="finishTime" column="finish_time" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+        <result property="delFlag" column="del_flag" />
+    </resultMap>
+
+    <sql id="selectQualityTaskVo">
+        select id, task_name, bid_id, framework_id, source_module, status, total_count, issue_count, start_time, finish_time,
+               create_by, create_time, update_by, update_time, remark, del_flag
+        from tdw_quality_task
+    </sql>
+
+    <select id="selectQualityTaskById" parameterType="Long" resultMap="TdwQualityTaskResult">
+        <include refid="selectQualityTaskVo"/>
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectQualityTaskList" parameterType="TdwQualityTask" resultMap="TdwQualityTaskResult">
+        <include refid="selectQualityTaskVo"/>
+        <where>
+            del_flag = '0'
+            <if test="taskName != null and taskName != ''"> and task_name like concat('%', #{taskName}, '%')</if>
+            <if test="bidId != null"> and bid_id = #{bidId}</if>
+            <if test="frameworkId != null"> and framework_id = #{frameworkId}</if>
+            <if test="sourceModule != null and sourceModule != ''"> and source_module = #{sourceModule}</if>
+            <if test="status != null and status != ''"> and status = #{status}</if>
+        </where>
+        order by create_time desc, id desc
+    </select>
+
+    <insert id="insertQualityTask" parameterType="TdwQualityTask" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_quality_task(task_name, bid_id, framework_id, source_module, status, total_count, issue_count,
+                                     start_time, finish_time, create_by, create_time, update_by, update_time, remark, del_flag)
+        values(#{taskName}, #{bidId}, #{frameworkId}, #{sourceModule}, #{status}, #{totalCount}, #{issueCount},
+               #{startTime}, #{finishTime}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+    </insert>
+
+    <update id="updateQualityTask" parameterType="TdwQualityTask">
+        update tdw_quality_task
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="taskName != null">task_name = #{taskName},</if>
+            <if test="bidId != null">bid_id = #{bidId},</if>
+            <if test="frameworkId != null">framework_id = #{frameworkId},</if>
+            <if test="sourceModule != null">source_module = #{sourceModule},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="totalCount != null">total_count = #{totalCount},</if>
+            <if test="issueCount != null">issue_count = #{issueCount},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteQualityTaskByIds" parameterType="Long">
+        update tdw_quality_task set del_flag = '2', update_time = now() where id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

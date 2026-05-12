@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwContentsMapper">
+    
+    <resultMap type="TdwContents" id="TdwContentsResult">
+        <result property="id"    column="id"    />
+        <result property="outlineId"    column="outline_id"    />
+        <result property="contentType"    column="content_type"    />
+        <result property="content"    column="content"    />
+        <result property="sortOrder"    column="sort_order"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectTdwContentsVo">
+        select id, outline_id, content_type, content, sort_order, create_time, update_time from tdw_contents
+    </sql>
+
+    <select id="selectTdwContentsList" parameterType="TdwContents" resultMap="TdwContentsResult">
+        <include refid="selectTdwContentsVo"/>
+        <where>  
+            <if test="outlineId != null "> and outline_id = #{outlineId}</if>
+            <if test="contentType != null "> and content_type = #{contentType}</if>
+            <if test="content != null  and content != ''"> and content = #{content}</if>
+            <if test="sortOrder != null "> and sort_order = #{sortOrder}</if>
+        </where>
+    </select>
+    
+    <select id="selectTdwContentsById" parameterType="Long" resultMap="TdwContentsResult">
+        <include refid="selectTdwContentsVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectTdwContentsByOutlineId" parameterType="Long" resultMap="TdwContentsResult">
+        <include refid="selectTdwContentsVo"/>
+        where outline_id = #{outlineId}
+        order by sort_order asc, id asc
+    </select>
+
+    <select id="selectMaxSortOrder" parameterType="Long" resultType="Integer">
+        select ifnull(max(sort_order), 0) from tdw_contents where outline_id = #{outlineId}
+    </select>
+
+    <select id="getContent" parameterType="Long" resultMap="TdwContentsResult">
+        WITH node_descendants AS (
+            -- 核心修改：把祖先节点改成节的ID=11，只查这个节下面的所有后代
+            SELECT descendant FROM tdw_outline_closure WHERE ancestor = #{id}
+        ),
+             node_sort_path AS (
+                 SELECT
+                     oc.descendant AS node_id,
+                     GROUP_CONCAT(o.sort_num ORDER BY oc.depth DESC SEPARATOR ',') AS sort_path
+                 FROM tdw_outline_closure oc
+                          INNER JOIN tdw_outlines o ON oc.ancestor = o.id
+                 WHERE oc.descendant IN (SELECT descendant FROM node_descendants)
+                 GROUP BY oc.descendant
+             )
+        SELECT
+            o.id AS outline_id,
+            o.title AS outline_title,
+            o.level,
+            c.id AS content_id,
+            c.content,
+            nsp.sort_path
+        FROM node_descendants nd
+                 INNER JOIN tdw_outlines o ON nd.descendant = o.id
+                 LEFT JOIN tdw_contents c ON o.id = c.outline_id
+                 INNER JOIN node_sort_path nsp ON o.id = nsp.node_id
+        ORDER BY nsp.sort_path, c.sort_order;
+    </select>
+
+    <insert id="insertTdwContents" parameterType="TdwContents" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_contents
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="outlineId != null">outline_id,</if>
+            <if test="contentType != null">content_type,</if>
+            <if test="content != null and content != ''">content,</if>
+            <if test="sortOrder != null">sort_order,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="outlineId != null">#{outlineId},</if>
+            <if test="contentType != null">#{contentType},</if>
+            <if test="content != null and content != ''">#{content},</if>
+            <if test="sortOrder != null">#{sortOrder},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tdw_contents(outline_id, content_type, content, sort_order, create_time, update_time) VALUES
+        <foreach collection='list' item='item' separator=','>
+            (#{item.outlineId}, #{item.contentType}, #{item.content}, #{item.sortOrder}, #{item.createTime}, #{item.updateTime})
+        </foreach>
+    </insert>
+
+    <update id="updateTdwContents" parameterType="TdwContents">
+        update tdw_contents
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="outlineId != null">outline_id = #{outlineId},</if>
+            <if test="contentType != null">content_type = #{contentType},</if>
+            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteTdwContentsById" parameterType="Long">
+        delete from tdw_contents where id = #{id}
+    </delete>
+
+    <delete id="deleteByOutlineId" parameterType="Long">
+        delete from tdw_contents where outline_id = #{outlineId}
+    </delete>
+
+    <delete id="deleteTdwContentsByIds" parameterType="String">
+        delete from tdw_contents where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="batchDeleteByOutlineIds" parameterType="Long">
+        delete from tdw_contents where outline_id in
+        <foreach collection='list' item='id' open='(' separator=',' close=')'>
+            #{id}
+        </foreach>
+    </delete>
+
+    <update id="updateSortOrder">
+        update tdw_contents set sort_order = #{sortOrder} where id = #{id}
+    </update>
+
+</mapper>
