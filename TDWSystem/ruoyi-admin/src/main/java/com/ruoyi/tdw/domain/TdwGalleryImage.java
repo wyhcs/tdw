@@ -19,6 +19,7 @@ public class TdwGalleryImage extends BaseEntity
     private Integer width;
     private Integer height;
     private String description;
+    private String imageTags;
     private String delFlag;
 
     public Long getId() { return id; }
@@ -41,6 +42,8 @@ public class TdwGalleryImage extends BaseEntity
     public void setHeight(Integer height) { this.height = height; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getImageTags() { return imageTags; }
+    public void setImageTags(String imageTags) { this.imageTags = imageTags; }
     public String getDelFlag() { return delFlag; }
     public void setDelFlag(String delFlag) { this.delFlag = delFlag; }
 }

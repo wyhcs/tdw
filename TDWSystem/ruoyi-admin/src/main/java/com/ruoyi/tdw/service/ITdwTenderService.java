@@ -7,6 +7,8 @@ import java.util.Map;
 import com.ruoyi.tdw.domain.TdwBids;
 import com.ruoyi.tdw.domain.TdwTenderFile;
 import com.ruoyi.tdw.domain.TdwTenderParseReport;
+import com.ruoyi.tdw.domain.dto.TdwServicePlanParseRequest;
+import com.ruoyi.tdw.domain.dto.TdwServicePlanParseResult;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface ITdwTenderService
@@ -17,7 +19,27 @@ public interface ITdwTenderService
 
     TdwTenderFile uploadTenderFile(Long bidId, MultipartFile file) throws IOException;
 
+    TdwTenderFile uploadTenderFile(Long bidId, MultipartFile file, String fileStage) throws IOException;
+
     TdwTenderParseReport mockParse(Long tenderFileId);
+
+    TdwServicePlanParseResult parseServicePlan(TdwServicePlanParseRequest request);
+
+    String extractServicePurchaseRequirementFromTenderFile(Long fileId, String category);
+
+    String extractServicePurchaseRequirementFromFile(Long fileId, String category);
+
+    String extractPlanFieldFromTenderFile(Long fileId, String category, String fieldKey);
+
+    String extractPlanFieldFromFile(Long fileId, String category, String fieldKey);
+
+    String extractServiceOtherAttachmentFromFile(Long fileId, String category);
+
+    String extractServiceScoreItemsFromTenderFile(Long fileId, String category);
+
+    String extractServiceScoreItemsFromPurchaseRequirement(String purchaseRequirement, String category);
+
+    String extractTechnicalScoreItems(String fullScoreItems, String category);
 
     List<TdwTenderFile> selectFilesByBidId(Long bidId);
 

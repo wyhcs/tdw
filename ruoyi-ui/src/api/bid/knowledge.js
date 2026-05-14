@@ -28,7 +28,10 @@ export function uploadKnowledgeFile(data) {
   return request({
     url: '/tdw/knowledge/file/upload',
     method: 'post',
-    headers: { repeatSubmit: false },
+    headers: {
+      repeatSubmit: false,
+      'Content-Type': 'multipart/form-data'
+    },
     data
   })
 }
@@ -39,6 +42,15 @@ export function parseKnowledgeFile(knowledgeFileId) {
 
 export function extractKnowledgeImages(knowledgeFileId) {
   return request({ url: '/tdw/knowledge/file/' + knowledgeFileId + '/extractImages', method: 'post' })
+}
+
+export function extractKnowledgeUpload(data) {
+  return request({
+    url: '/tdw/knowledge/file/extractUpload',
+    method: 'post',
+    headers: { 'Content-Type': 'multipart/form-data', repeatSubmit: false },
+    data
+  })
 }
 
 export function listTemplateFiles(query) {

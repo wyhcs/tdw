@@ -177,6 +177,32 @@ export const dynamicRoutes = [
     ]
   },
   {
+    path: '/bid/plan',
+    component: Layout,
+    hidden: true,
+    permissions: ['bid:plan:list'],
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/bid/plan/index'),
+        name: 'BidPlanHome',
+        meta: { title: 'AI方案', icon: 'edit' }
+      }
+    ]
+  },
+  {
+    path: '/bid/ai-plan',
+    component: Layout,
+    hidden: true,
+    permissions: ['bid:plan:list'],
+    children: [
+      {
+        path: '',
+        redirect: '/bid/plan'
+      }
+    ]
+  },
+  {
     path: '/bid/plan/create',
     component: Layout,
     hidden: true,
@@ -190,22 +216,36 @@ export const dynamicRoutes = [
       }
     ]
   },
-  {
-    path: '/bid/plan/editor',
-    component: Layout,
-    hidden: true,
-    permissions: ['bid:plan:query'],
+    {
+      path: '/bid/plan/editor',
+      component: Layout,
+      hidden: true,
+      permissions: ['bid:plan:query'],
     children: [
       {
         path: '',
         component: () => import('@/views/bid/plan/editor'),
         name: 'BidPlanEditor',
         meta: { title: 'AI方案编辑器', activeMenu: '/bid/plan' }
-      }
-    ]
-  },
-  {
-    path: '/bid/tender/create',
+        }
+      ]
+    },
+    {
+      path: '/bid/plan/outline',
+      component: Layout,
+      hidden: true,
+      permissions: ['bid:plan:query'],
+      children: [
+        {
+          path: '',
+          component: () => import('@/views/bid/plan/outline'),
+          name: 'BidPlanOutline',
+          meta: { title: 'AI方案目录编辑', activeMenu: '/bid/plan' }
+        }
+      ]
+    },
+    {
+      path: '/bid/tender/create',
     component: Layout,
     hidden: true,
     permissions: ['bid:tender:add'],

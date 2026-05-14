@@ -63,4 +63,10 @@ public class TdwAiServiceImpl implements TdwAiService
     {
         return aiProviderFactory.getProvider().buildDuplicateText(request);
     }
+
+    @Override
+    public String extractText(String prompt, String inputText, String taskType)
+    {
+        return aiProviderFactory.getProvider().extractText(prompt, inputText, taskType);
+    }
 }

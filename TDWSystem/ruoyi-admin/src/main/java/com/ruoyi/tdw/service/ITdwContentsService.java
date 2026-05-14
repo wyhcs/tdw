@@ -33,6 +33,8 @@ public interface ITdwContentsService
 
     public List<TdwContents> selectTdwContentsByOutlineId(Long outlineId);
 
+    public List<TdwContents> selectTdwContentsByOutlineIds(List<Long> outlineIds);
+
     /**
      * 新增内容块，支持文本/格/图片混排，随意增删改
      * 

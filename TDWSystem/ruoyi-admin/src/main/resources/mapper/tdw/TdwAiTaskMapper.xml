@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwAiTaskMapper">
+
+    <resultMap type="TdwAiTask" id="TdwAiTaskResult">
+        <result property="id" column="id" />
+        <result property="moduleType" column="module_type" />
+        <result property="bizId" column="biz_id" />
+        <result property="targetType" column="target_type" />
+        <result property="targetId" column="target_id" />
+        <result property="taskType" column="task_type" />
+        <result property="taskName" column="task_name" />
+        <result property="promptKey" column="prompt_key" />
+        <result property="providerName" column="provider_name" />
+        <result property="modelName" column="model_name" />
+        <result property="status" column="status" />
+        <result property="streamStatus" column="stream_status" />
+        <result property="progress" column="progress" />
+        <result property="currentOutput" column="current_output" />
+        <result property="resultType" column="result_type" />
+        <result property="resultId" column="result_id" />
+        <result property="inputChars" column="input_chars" />
+        <result property="outputChars" column="output_chars" />
+        <result property="tokensInput" column="tokens_input" />
+        <result property="tokensOutput" column="tokens_output" />
+        <result property="retryCount" column="retry_count" />
+        <result property="errorMessage" column="error_message" />
+        <result property="startedTime" column="started_time" />
+        <result property="finishedTime" column="finished_time" />
+        <result property="elapsedMs" column="elapsed_ms" />
+        <result property="delFlag" column="del_flag" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectTdwAiTaskVo">
+        select id, module_type, biz_id, target_type, target_id, task_type, task_name, prompt_key,
+               provider_name, model_name, status, stream_status, progress, current_output,
+               result_type, result_id, input_chars, output_chars, tokens_input, tokens_output,
+               retry_count, error_message, started_time, finished_time, elapsed_ms, del_flag,
+               create_by, create_time, update_by, update_time, remark
+        from tdw_ai_task
+    </sql>
+
+    <select id="selectTdwAiTaskById" resultMap="TdwAiTaskResult">
+        <include refid="selectTdwAiTaskVo" />
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <insert id="insertTdwAiTask" parameterType="TdwAiTask" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_ai_task
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="moduleType != null">module_type,</if>
+            <if test="bizId != null">biz_id,</if>
+            <if test="targetType != null">target_type,</if>
+            <if test="targetId != null">target_id,</if>
+            <if test="taskType != null">task_type,</if>
+            <if test="taskName != null">task_name,</if>
+            <if test="promptKey != null">prompt_key,</if>
+            <if test="providerName != null">provider_name,</if>
+            <if test="modelName != null">model_name,</if>
+            <if test="status != null">status,</if>
+            <if test="streamStatus != null">stream_status,</if>
+            <if test="progress != null">progress,</if>
+            <if test="currentOutput != null">current_output,</if>
+            <if test="resultType != null">result_type,</if>
+            <if test="resultId != null">result_id,</if>
+            <if test="inputChars != null">input_chars,</if>
+            <if test="outputChars != null">output_chars,</if>
+            <if test="tokensInput != null">tokens_input,</if>
+            <if test="tokensOutput != null">tokens_output,</if>
+            <if test="retryCount != null">retry_count,</if>
+            <if test="errorMessage != null">error_message,</if>
+            <if test="startedTime != null">started_time,</if>
+            <if test="finishedTime != null">finished_time,</if>
+            <if test="elapsedMs != null">elapsed_ms,</if>
+            del_flag,
+            create_time,
+            update_time,
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="moduleType != null">#{moduleType},</if>
+            <if test="bizId != null">#{bizId},</if>
+            <if test="targetType != null">#{targetType},</if>
+            <if test="targetId != null">#{targetId},</if>
+            <if test="taskType != null">#{taskType},</if>
+            <if test="taskName != null">#{taskName},</if>
+            <if test="promptKey != null">#{promptKey},</if>
+            <if test="providerName != null">#{providerName},</if>
+            <if test="modelName != null">#{modelName},</if>
+            <if test="status != null">#{status},</if>
+            <if test="streamStatus != null">#{streamStatus},</if>
+            <if test="progress != null">#{progress},</if>
+            <if test="currentOutput != null">#{currentOutput},</if>
+            <if test="resultType != null">#{resultType},</if>
+            <if test="resultId != null">#{resultId},</if>
+            <if test="inputChars != null">#{inputChars},</if>
+            <if test="outputChars != null">#{outputChars},</if>
+            <if test="tokensInput != null">#{tokensInput},</if>
+            <if test="tokensOutput != null">#{tokensOutput},</if>
+            <if test="retryCount != null">#{retryCount},</if>
+            <if test="errorMessage != null">#{errorMessage},</if>
+            <if test="startedTime != null">#{startedTime},</if>
+            <if test="finishedTime != null">#{finishedTime},</if>
+            <if test="elapsedMs != null">#{elapsedMs},</if>
+            '0',
+            now(),
+            now(),
+        </trim>
+    </insert>
+
+    <update id="updateTdwAiTask" parameterType="TdwAiTask">
+        update tdw_ai_task
+        <trim prefix="set" suffixOverrides=",">
+            <if test="status != null">status = #{status},</if>
+            <if test="streamStatus != null">stream_status = #{streamStatus},</if>
+            <if test="progress != null">progress = #{progress},</if>
+            <if test="currentOutput != null">current_output = #{currentOutput},</if>
+            <if test="resultType != null">result_type = #{resultType},</if>
+            <if test="resultId != null">result_id = #{resultId},</if>
+            <if test="outputChars != null">output_chars = #{outputChars},</if>
+            <if test="tokensInput != null">tokens_input = #{tokensInput},</if>
+            <if test="tokensOutput != null">tokens_output = #{tokensOutput},</if>
+            <if test="retryCount != null">retry_count = #{retryCount},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
+            <if test="startedTime != null">started_time = #{startedTime},</if>
+            <if test="finishedTime != null">finished_time = #{finishedTime},</if>
+            <if test="elapsedMs != null">elapsed_ms = #{elapsedMs},</if>
+            update_time = now(),
+        </trim>
+        where id = #{id}
+    </update>
+</mapper>

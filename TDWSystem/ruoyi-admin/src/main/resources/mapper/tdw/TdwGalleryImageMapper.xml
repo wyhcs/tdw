@@ -15,6 +15,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="width" column="width" />
         <result property="height" column="height" />
         <result property="description" column="description" />
+        <result property="imageTags" column="image_tags" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -24,7 +25,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectGalleryImageVo">
-        select id, gallery_id, image_name, original_name, image_url, image_size, image_type, width, height, description,
+        select id, gallery_id, image_name, original_name, image_url, image_size, image_type, width, height, description, image_tags,
                create_by, create_time, update_by, update_time, remark, del_flag
         from tdw_gallery_image
     </sql>
@@ -46,9 +47,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <insert id="insertGalleryImage" parameterType="TdwGalleryImage" useGeneratedKeys="true" keyProperty="id">
         insert into tdw_gallery_image(gallery_id, image_name, original_name, image_url, image_size, image_type, width, height,
-                                      description, create_by, create_time, update_by, update_time, remark, del_flag)
+                                      description, image_tags, create_by, create_time, update_by, update_time, remark, del_flag)
         values(#{galleryId}, #{imageName}, #{originalName}, #{imageUrl}, #{imageSize}, #{imageType}, #{width}, #{height},
-               #{description}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+               #{description}, #{imageTags}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
     </insert>
 
     <update id="updateGalleryImage" parameterType="TdwGalleryImage">
@@ -63,6 +64,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="width != null">width = #{width},</if>
             <if test="height != null">height = #{height},</if>
             <if test="description != null">description = #{description},</if>
+            <if test="imageTags != null">image_tags = #{imageTags},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>

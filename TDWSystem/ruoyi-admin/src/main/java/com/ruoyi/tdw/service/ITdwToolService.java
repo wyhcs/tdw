@@ -24,6 +24,8 @@ public interface ITdwToolService
 
     TdwGalleryImage uploadImage(Long galleryId, String imageName, String description, MultipartFile file) throws IOException;
 
+    TdwGalleryImage extractDocImage(Long galleryId, MultipartFile file) throws IOException;
+
     int updateGalleryImage(TdwGalleryImage image);
 
     int deleteGalleryImageByIds(Long[] ids);

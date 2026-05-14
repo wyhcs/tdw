@@ -79,6 +79,25 @@ public class TdwContentsServiceImpl implements ITdwContentsService
     }
 
     @Override
+    public List<TdwContents> selectTdwContentsByOutlineIds(List<Long> outlineIds)
+    {
+        if (outlineIds == null || outlineIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<Long> ids = new ArrayList<>();
+        Set<Long> uniqueIds = new LinkedHashSet<>(outlineIds);
+        for (Long outlineId : uniqueIds) {
+            if (outlineId != null) {
+                ids.add(outlineId);
+            }
+        }
+        if (ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return tdwContentsMapper.selectTdwContentsByOutlineIds(ids);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public int insertTdwContents(TdwContents tdwContents)
     {

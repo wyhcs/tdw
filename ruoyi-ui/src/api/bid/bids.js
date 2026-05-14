@@ -46,3 +46,54 @@ export function exportPlanHtml(data) {
     data
   })
 }
+
+export function createPlanWithMaterial(data) {
+  const formData = new FormData()
+  Object.keys(data).forEach(key => {
+    if (data[key] !== undefined && data[key] !== null) {
+      formData.append(key, data[key])
+    }
+  })
+  return request({
+    url: '/tdw/tender/create',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+export function uploadPlanMaterial(bidId, file, stage) {
+  const formData = new FormData()
+  formData.append('bidId', bidId)
+  formData.append('file', file)
+  if (stage) {
+    formData.append('stage', stage)
+  }
+  return request({
+    url: '/tdw/tender/upload',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+export function parsePlanMaterial(fileId) {
+  return request({
+    url: '/tdw/tender/parse/' + fileId,
+    method: 'post'
+  })
+}
+
+export function listPlanMaterials(bidId) {
+  return request({
+    url: '/tdw/tender/files/' + bidId,
+    method: 'get'
+  })
+}
+
+export function getLatestPlanReport(bidId) {
+  return request({
+    url: '/tdw/tender/report/latest/' + bidId,
+    method: 'get'
+  })
+}

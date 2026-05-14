@@ -30,6 +30,8 @@ public interface TdwContentsMapper
 
     public List<TdwContents> selectTdwContentsByOutlineId(@Param("outlineId") Long outlineId);
 
+    public List<TdwContents> selectTdwContentsByOutlineIds(@Param("outlineIds") List<Long> outlineIds);
+
     public Integer selectMaxSortOrder(@Param("outlineId") Long outlineId);
 
     /**

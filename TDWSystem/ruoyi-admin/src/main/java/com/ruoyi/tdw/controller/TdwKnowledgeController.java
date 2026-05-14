@@ -9,6 +9,7 @@ import com.ruoyi.tdw.domain.TdwKnowledgeBase;
 import com.ruoyi.tdw.domain.TdwKnowledgeChunk;
 import com.ruoyi.tdw.domain.TdwKnowledgeFile;
 import com.ruoyi.tdw.service.ITdwKnowledgeService;
+import com.ruoyi.tdw.service.ITdwToolService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +29,8 @@ public class TdwKnowledgeController extends BaseController
 {
     @Autowired
     private ITdwKnowledgeService knowledgeService;
+    @Autowired
+    private ITdwToolService toolService;
 
     @GetMapping("/list")
     public TableDataInfo list(TdwKnowledgeBase query)
@@ -76,7 +79,23 @@ public class TdwKnowledgeController extends BaseController
                              @RequestParam(value = "fileUsage", required = false) String fileUsage,
                              @RequestParam(value = "isTemplate", required = false) String isTemplate)
     {
+        System.out.println("##################");
+        System.out.println(knowledgeId);
+        System.out.println(file);
         return success(knowledgeService.uploadKnowledgeFile(file, knowledgeId, fileUsage, isTemplate));
+    }
+
+    @PostMapping("/file/extractUpload")
+    public AjaxResult extractUpload(@RequestParam("file") MultipartFile file,
+                                    @RequestParam("knowledgeId") Long knowledgeId,
+                                    @RequestParam(value = "galleryId", required = false) Long galleryId) throws Exception
+    {
+        TdwKnowledgeFile knowledgeFile = knowledgeService.uploadKnowledgeFile(file, knowledgeId, "material", "0");
+        knowledgeService.extractImagesMock(knowledgeFile.getKnowledgeFileId());
+        if (galleryId != null) {
+            toolService.extractDocImage(galleryId, file);
+        }
+        return success(knowledgeFile);
     }
 
     @PostMapping("/file/{knowledgeFileId}/parse")

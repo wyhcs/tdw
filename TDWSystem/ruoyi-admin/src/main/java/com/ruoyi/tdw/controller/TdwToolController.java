@@ -84,6 +84,13 @@ public class TdwToolController extends BaseController
         return success(toolService.uploadImage(galleryId, imageName, description, file));
     }
 
+    @PostMapping("/image/extractDoc")
+    public AjaxResult extractDocImage(@RequestParam("galleryId") Long galleryId,
+                                      @RequestParam("file") MultipartFile file) throws IOException
+    {
+        return success(toolService.extractDocImage(galleryId, file));
+    }
+
     @PutMapping("/image")
     public AjaxResult editImage(@RequestBody TdwGalleryImage image)
     {

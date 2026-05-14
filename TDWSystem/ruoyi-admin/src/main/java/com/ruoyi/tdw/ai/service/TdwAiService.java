@@ -23,4 +23,6 @@ public interface TdwAiService
     String checkQuality(GenerateContentAiRequest request);
 
     String buildDuplicateText(GenerateContentAiRequest request) throws JsonProcessingException;
+
+    String extractText(String prompt, String inputText, String taskType);
 }

@@ -16,6 +16,7 @@ public class TdwTenderFile extends BaseEntity
     private String fileUrl;
     private Long fileSize;
     private String fileType;
+    private String fileStage;
     private String parseStatus;
     private Long parseReportId;
 
@@ -33,6 +34,8 @@ public class TdwTenderFile extends BaseEntity
     public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
     public String getFileType() { return fileType; }
     public void setFileType(String fileType) { this.fileType = fileType; }
+    public String getFileStage() { return fileStage; }
+    public void setFileStage(String fileStage) { this.fileStage = fileStage; }
     public String getParseStatus() { return parseStatus; }
     public void setParseStatus(String parseStatus) { this.parseStatus = parseStatus; }
     public Long getParseReportId() { return parseReportId; }

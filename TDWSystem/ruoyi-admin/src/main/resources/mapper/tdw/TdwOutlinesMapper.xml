@@ -10,12 +10,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="parentId"    column="parent_id"    />
         <result property="level"    column="level"    />
         <result property="title"    column="title"    />
+        <result property="titlePrefix"    column="title_prefix"    />
+        <result property="titleText"    column="title_text"    />
         <result property="sortNum"    column="sort_num"    />
         <result property="wordLimit"    column="word_limit"    />
+        <result property="requirementDesc"    column="requirement_desc"    />
+        <result property="writingDirection"    column="writing_direction"    />
+        <result property="writingRequirement"    column="writing_requirement"    />
+        <result property="directionMode"    column="direction_mode"    />
+        <result property="requirementMode"    column="requirement_mode"    />
+        <result property="contentWords"    column="content_words"    />
     </resultMap>
 
     <sql id="selectTdwOutlinesVo">
-        select id, bid_id, parent_id, level, title, sort_num, word_limit from tdw_outlines
+        select id, bid_id, parent_id, level, title, title_prefix, title_text, sort_num, word_limit,
+               requirement_desc, writing_direction, writing_requirement, direction_mode, requirement_mode, content_words
+        from tdw_outlines
     </sql>
 
     <select id="selectTdwOutlinesList" parameterType="TdwOutlines" resultMap="TdwOutlinesResult">
@@ -40,7 +50,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectContentTitleOutlinesByAncestor" parameterType="Long" resultMap="TdwOutlinesResult">
-        select o.id, o.bid_id, o.parent_id, o.level, o.title, o.sort_num, o.word_limit
+        select o.id, o.bid_id, o.parent_id, o.level, o.title, o.title_prefix, o.title_text, o.sort_num, o.word_limit,
+               o.requirement_desc, o.writing_direction, o.writing_requirement, o.direction_mode, o.requirement_mode, o.content_words
         from tdw_outline_closure c
                  inner join tdw_outlines o on c.descendant = o.id
         where c.ancestor = #{outlineId}
@@ -49,14 +60,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <select id="selectOutlinesByBidId" parameterType="Long" resultMap="TdwOutlinesResult">
-        select id, bid_id, parent_id, level, title, sort_num, word_limit
+        select id, bid_id, parent_id, level, title, title_prefix, title_text, sort_num, word_limit,
+               requirement_desc, writing_direction, writing_requirement, direction_mode, requirement_mode, content_words
         from tdw_outlines
         where bid_id = #{bidId}
         order by level asc, parent_id asc, sort_num asc, id asc
     </select>
 
     <select id="selectSiblings" resultMap="TdwOutlinesResult">
-        select id, bid_id, parent_id, level, title, sort_num, word_limit
+        select id, bid_id, parent_id, level, title, title_prefix, title_text, sort_num, word_limit,
+               requirement_desc, writing_direction, writing_requirement, direction_mode, requirement_mode, content_words
         from tdw_outlines
         where bid_id = #{bidId}
         <choose>
@@ -99,23 +112,41 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="parentId != null">parent_id,</if>
             <if test="level != null">level,</if>
             <if test="title != null and title != ''">title,</if>
+            <if test="titlePrefix != null">title_prefix,</if>
+            <if test="titleText != null">title_text,</if>
             <if test="sortNum != null">sort_num,</if>
             <if test="wordLimit != null">word_limit,</if>
+            <if test="requirementDesc != null">requirement_desc,</if>
+            <if test="writingDirection != null">writing_direction,</if>
+            <if test="writingRequirement != null">writing_requirement,</if>
+            <if test="directionMode != null">direction_mode,</if>
+            <if test="requirementMode != null">requirement_mode,</if>
+            <if test="contentWords != null">content_words,</if>
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="bidId != null">#{bidId},</if>
             <if test="parentId != null">#{parentId},</if>
             <if test="level != null">#{level},</if>
             <if test="title != null and title != ''">#{title},</if>
+            <if test="titlePrefix != null">#{titlePrefix},</if>
+            <if test="titleText != null">#{titleText},</if>
             <if test="sortNum != null">#{sortNum},</if>
             <if test="wordLimit != null">#{wordLimit},</if>
+            <if test="requirementDesc != null">#{requirementDesc},</if>
+            <if test="writingDirection != null">#{writingDirection},</if>
+            <if test="writingRequirement != null">#{writingRequirement},</if>
+            <if test="directionMode != null">#{directionMode},</if>
+            <if test="requirementMode != null">#{requirementMode},</if>
+            <if test="contentWords != null">#{contentWords},</if>
          </trim>
     </insert>
 
     <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO tdw_outlines(bid_id, level, title, sort_num, word_limit) VALUES
+        INSERT INTO tdw_outlines(bid_id, level, title, title_prefix, title_text, sort_num, word_limit,
+                                 requirement_desc, writing_direction, writing_requirement, direction_mode, requirement_mode, content_words) VALUES
         <foreach collection='list' item='item' separator=','>
-            (#{item.bidId}, #{item.level}, #{item.title}, #{item.sortNum}, #{item.wordLimit})
+            (#{item.bidId}, #{item.level}, #{item.title}, #{item.titlePrefix}, #{item.titleText}, #{item.sortNum}, #{item.wordLimit},
+             #{item.requirementDesc}, #{item.writingDirection}, #{item.writingRequirement}, #{item.directionMode}, #{item.requirementMode}, #{item.contentWords})
         </foreach>
     </insert>
 
@@ -137,13 +168,55 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="parentId != null">parent_id = #{parentId},</if>
             <if test="level != null">level = #{level},</if>
             <if test="title != null and title != ''">title = #{title},</if>
+            <if test="titlePrefix != null">title_prefix = #{titlePrefix},</if>
+            <if test="titleText != null">title_text = #{titleText},</if>
             <if test="sortNum != null">sort_num = #{sortNum},</if>
+            <if test="wordLimit != null">word_limit = #{wordLimit},</if>
+            <if test="requirementDesc != null">requirement_desc = #{requirementDesc},</if>
+            <if test="writingDirection != null">writing_direction = #{writingDirection},</if>
+            <if test="writingRequirement != null">writing_requirement = #{writingRequirement},</if>
+            <if test="directionMode != null">direction_mode = #{directionMode},</if>
+            <if test="requirementMode != null">requirement_mode = #{requirementMode},</if>
+            <if test="contentWords != null">content_words = #{contentWords},</if>
         </trim>
         where id = #{id}
     </update>
 
     <update id="updateOutlineTitle">
         update tdw_outlines set title = #{title} where id = #{id}
+    </update>
+
+    <update id="updateOutlineNumbering">
+        update tdw_outlines
+        set title = #{title},
+            title_prefix = #{titlePrefix},
+            title_text = #{titleText},
+            sort_num = #{sortNum}
+        where id = #{id}
+    </update>
+
+    <update id="updateOutlineWordLimit">
+        update tdw_outlines set word_limit = #{wordLimit} where id = #{id}
+    </update>
+
+    <update id="updateOutlineWordLimitByIds">
+        update tdw_outlines set word_limit = #{wordLimit}
+        where id in
+        <foreach collection='ids' item='id' open='(' separator=',' close=')'>
+            #{id}
+        </foreach>
+    </update>
+
+    <update id="updateWritingDirection">
+        update tdw_outlines
+        set writing_direction = #{writingDirection}, direction_mode = #{directionMode}
+        where id = #{id}
+    </update>
+
+    <update id="updateWritingRequirement">
+        update tdw_outlines
+        set writing_requirement = #{writingRequirement}, requirement_mode = #{requirementMode}
+        where id = #{id}
     </update>
 
     <update id="updateParentAndSort">

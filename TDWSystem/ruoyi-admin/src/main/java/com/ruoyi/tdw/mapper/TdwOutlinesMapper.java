@@ -80,6 +80,24 @@ public interface TdwOutlinesMapper
 
     int updateOutlineTitle(@Param("id") Long id, @Param("title") String title);
 
+    int updateOutlineNumbering(@Param("id") Long id,
+                               @Param("title") String title,
+                               @Param("titlePrefix") String titlePrefix,
+                               @Param("titleText") String titleText,
+                               @Param("sortNum") Integer sortNum);
+
+    int updateOutlineWordLimit(@Param("id") Long id, @Param("wordLimit") Integer wordLimit);
+
+    int updateOutlineWordLimitByIds(@Param("ids") List<Long> ids, @Param("wordLimit") Integer wordLimit);
+
+    int updateWritingDirection(@Param("id") Long id,
+                               @Param("writingDirection") String writingDirection,
+                               @Param("directionMode") String directionMode);
+
+    int updateWritingRequirement(@Param("id") Long id,
+                                 @Param("writingRequirement") String writingRequirement,
+                                 @Param("requirementMode") String requirementMode);
+
     int updateParentAndSort(@Param("id") Long id, @Param("parentId") Long parentId, @Param("sortNum") Integer sortNum);
 
     int updateSortNum(@Param("id") Long id, @Param("sortNum") Integer sortNum);

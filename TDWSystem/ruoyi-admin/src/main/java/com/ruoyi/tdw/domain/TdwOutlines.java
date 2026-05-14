@@ -36,12 +36,36 @@ public class TdwOutlines extends BaseEntity
     @Excel(name = "大纲标题")
     private String title;
 
+    /** 标题序号，如第一章、第一节、（一） */
+    private String titlePrefix;
+
+    /** 纯标题，不含序号 */
+    private String titleText;
+
     /** 同级排序号 */
     @Excel(name = "同级排序号")
     private int sortNum;
 
     @Excel(name = "内容字数限制")
     private int wordLimit;
+
+    /** 新增节点时的需求描述 */
+    private String requirementDesc;
+
+    /** 编写方向 */
+    private String writingDirection;
+
+    /** 编写要求 */
+    private String writingRequirement;
+
+    /** 编写方向生成方式 */
+    private String directionMode;
+
+    /** 编写要求生成方式 */
+    private String requirementMode;
+
+    /** 已生成正文实际字数 */
+    private int contentWords;
 
     /** 子节点，用于返回三级大纲树 */
     private List<TdwOutlines> children = new ArrayList<TdwOutlines>();
@@ -96,6 +120,26 @@ public class TdwOutlines extends BaseEntity
         return title;
     }
 
+    public String getTitlePrefix()
+    {
+        return titlePrefix;
+    }
+
+    public void setTitlePrefix(String titlePrefix)
+    {
+        this.titlePrefix = titlePrefix;
+    }
+
+    public String getTitleText()
+    {
+        return titleText;
+    }
+
+    public void setTitleText(String titleText)
+    {
+        this.titleText = titleText;
+    }
+
     public void setSortNum(int sortNum)
     {
         this.sortNum = sortNum;
@@ -116,6 +160,66 @@ public class TdwOutlines extends BaseEntity
         return wordLimit;
     }
 
+    public String getRequirementDesc()
+    {
+        return requirementDesc;
+    }
+
+    public void setRequirementDesc(String requirementDesc)
+    {
+        this.requirementDesc = requirementDesc;
+    }
+
+    public String getWritingDirection()
+    {
+        return writingDirection;
+    }
+
+    public void setWritingDirection(String writingDirection)
+    {
+        this.writingDirection = writingDirection;
+    }
+
+    public String getWritingRequirement()
+    {
+        return writingRequirement;
+    }
+
+    public void setWritingRequirement(String writingRequirement)
+    {
+        this.writingRequirement = writingRequirement;
+    }
+
+    public String getDirectionMode()
+    {
+        return directionMode;
+    }
+
+    public void setDirectionMode(String directionMode)
+    {
+        this.directionMode = directionMode;
+    }
+
+    public String getRequirementMode()
+    {
+        return requirementMode;
+    }
+
+    public void setRequirementMode(String requirementMode)
+    {
+        this.requirementMode = requirementMode;
+    }
+
+    public int getContentWords()
+    {
+        return contentWords;
+    }
+
+    public void setContentWords(int contentWords)
+    {
+        this.contentWords = contentWords;
+    }
+
     public void setChildren(List<TdwOutlines> children)
     {
         this.children = children;
@@ -134,8 +238,16 @@ public class TdwOutlines extends BaseEntity
             .append("parentId", getParentId())
             .append("level", getLevel())
             .append("title", getTitle())
+            .append("titlePrefix", getTitlePrefix())
+            .append("titleText", getTitleText())
             .append("sortNum", getSortNum())
             .append("wordLimit", getWordLimit())
+            .append("requirementDesc", getRequirementDesc())
+            .append("writingDirection", getWritingDirection())
+            .append("writingRequirement", getWritingRequirement())
+            .append("directionMode", getDirectionMode())
+            .append("requirementMode", getRequirementMode())
+            .append("contentWords", getContentWords())
             .append("children", getChildren())
             .toString();
     }

@@ -8,6 +8,14 @@ export function listContentsByOutline(outlineId) {
   })
 }
 
+export function listContentsByOutlines(outlineIds) {
+  return request({
+    url: '/tdw/contents/byOutlines',
+    method: 'post',
+    data: outlineIds || []
+  })
+}
+
 // 生成内容块
 export function generateContentBlocks(data) {
   return request({

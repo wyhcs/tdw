@@ -26,6 +26,19 @@ ruoyi:
 
 #  pdfToTextPath: D:\\ruoyi\\poppler\\Library\\bin\\pdftotext.exe
 
+tdw:
+  ai:
+    provider: glm
+    glm:
+      api-url: https://llmapi.paratera.com/v1/chat/completions
+      api-key: ${TDW_GLM_API_KEY:}
+      model: GLM-4-Flash
+      stream: true
+      enable-thinking: false
+      connect-timeout-seconds: 20
+      read-timeout-seconds: 180
+      max-prompt-chars: 32000
+
 # 开发环境配置
 server:
   # 服务器的HTTP端口，默认为8080

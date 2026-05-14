@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwPlanSettingMapper">
+
+    <resultMap type="TdwPlanSetting" id="TdwPlanSettingResult">
+        <result property="id" column="id" />
+        <result property="bidId" column="bid_id" />
+        <result property="wordPreset" column="word_preset" />
+        <result property="pageWords" column="page_words" />
+        <result property="globalWritingDirection" column="global_writing_direction" />
+        <result property="globalWritingRequirement" column="global_writing_requirement" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="selectTdwPlanSettingVo">
+        select id, bid_id, word_preset, page_words, global_writing_direction, global_writing_requirement,
+               create_time, update_time
+        from tdw_plan_setting
+    </sql>
+
+    <select id="selectByBidId" resultMap="TdwPlanSettingResult">
+        <include refid="selectTdwPlanSettingVo" />
+        where bid_id = #{bidId}
+        limit 1
+    </select>
+
+    <insert id="insertTdwPlanSetting" parameterType="TdwPlanSetting" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_plan_setting
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="bidId != null">bid_id,</if>
+            <if test="wordPreset != null">word_preset,</if>
+            <if test="pageWords != null">page_words,</if>
+            <if test="globalWritingDirection != null">global_writing_direction,</if>
+            <if test="globalWritingRequirement != null">global_writing_requirement,</if>
+            create_time,
+            update_time,
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="bidId != null">#{bidId},</if>
+            <if test="wordPreset != null">#{wordPreset},</if>
+            <if test="pageWords != null">#{pageWords},</if>
+            <if test="globalWritingDirection != null">#{globalWritingDirection},</if>
+            <if test="globalWritingRequirement != null">#{globalWritingRequirement},</if>
+            now(),
+            now(),
+        </trim>
+    </insert>
+
+    <update id="updateTdwPlanSetting" parameterType="TdwPlanSetting">
+        update tdw_plan_setting
+        <trim prefix="set" suffixOverrides=",">
+            <if test="wordPreset != null">word_preset = #{wordPreset},</if>
+            <if test="pageWords != null">page_words = #{pageWords},</if>
+            <if test="globalWritingDirection != null">global_writing_direction = #{globalWritingDirection},</if>
+            <if test="globalWritingRequirement != null">global_writing_requirement = #{globalWritingRequirement},</if>
+            update_time = now(),
+        </trim>
+        where bid_id = #{bidId}
+    </update>
+
+    <insert id="upsertTdwPlanSetting" parameterType="TdwPlanSetting" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_plan_setting(
+            bid_id, word_preset, page_words, global_writing_direction, global_writing_requirement, create_time, update_time
+        ) values (
+            #{bidId}, #{wordPreset}, #{pageWords}, #{globalWritingDirection}, #{globalWritingRequirement}, now(), now()
+        )
+        on duplicate key update
+            word_preset = values(word_preset),
+            page_words = values(page_words),
+            global_writing_direction = values(global_writing_direction),
+            global_writing_requirement = values(global_writing_requirement),
+            update_time = now()
+    </insert>
+</mapper>

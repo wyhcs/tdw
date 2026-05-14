@@ -105,10 +105,10 @@ public class QianwenWriteOutline {
     }
 
     public static String getQianwenOutline(String prompt){
-        String apiKey = "sk-tGcQ1nj0wfNVlB3EsdIufg";
+        String apiKey = getApiKey();
         if (apiKey == null || apiKey.isEmpty()) {
             System.err.println("apiKey not set");
-            System.exit(1);
+            return "";
         }
 
 //        String prompt = buildPrompt(title);
@@ -192,6 +192,14 @@ public class QianwenWriteOutline {
             return "";
         }
 
+    }
+
+    private static String getApiKey() {
+        String apiKey = System.getProperty("tdw.ai.glm.api-key");
+        if (apiKey == null || apiKey.isEmpty()) {
+            apiKey = System.getenv("TDW_GLM_API_KEY");
+        }
+        return apiKey;
     }
 
 

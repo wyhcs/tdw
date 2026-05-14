@@ -39,6 +39,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by sort_order asc, id asc
     </select>
 
+    <select id="selectTdwContentsByOutlineIds" resultMap="TdwContentsResult">
+        <include refid="selectTdwContentsVo"/>
+        where outline_id in
+        <foreach collection="outlineIds" item="outlineId" open="(" separator="," close=")">
+            #{outlineId}
+        </foreach>
+        order by outline_id asc, sort_order asc, id asc
+    </select>
+
     <select id="selectMaxSortOrder" parameterType="Long" resultType="Integer">
         select ifnull(max(sort_order), 0) from tdw_contents where outline_id = #{outlineId}
     </select>

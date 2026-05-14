@@ -58,6 +58,12 @@ public class TdwContentsController extends BaseController
         return success(tdwContentsService.selectTdwContentsByOutlineId(outlineId));
     }
 
+    @ApiOperation("根据多个大纲ID批量查询内容块列表")
+    @PostMapping(value ="/byOutlines")
+    public AjaxResult byOutlines(@RequestBody List<Long> outlineIds) {
+        return success(tdwContentsService.selectTdwContentsByOutlineIds(outlineIds));
+    }
+
     @ApiOperation("调整内容块排序")
     @PutMapping(value ="/sort")
     public AjaxResult sort(@RequestBody TdwContentSortRequest request) {

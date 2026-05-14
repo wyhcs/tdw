@@ -71,16 +71,36 @@ export default {
       })
     },
     handleUpload(option) {
+      console.log('upload option:', option)
+
+      const realFile = option.file.raw || option.file.file || option.file
+
       const form = new FormData()
-      form.append('file', option.file)
-      form.append('knowledgeId', this.knowledgeId)
+      form.append('file', realFile)
+      form.append('knowledgeId', String(this.knowledgeId))
       form.append('fileUsage', 'material')
       form.append('isTemplate', '0')
+
+      for (const item of form.entries()) {
+        console.log(item[0], item[1])
+      }
+
       uploadKnowledgeFile(form).then(() => {
         this.$modal.msgSuccess('上传成功')
         this.loadFiles()
       })
     },
+    // handleUpload(option) {
+    //   const form = new FormData()
+    //   form.append('file', option.file)
+    //   form.append('knowledgeId', this.knowledgeId)
+    //   form.append('fileUsage', 'material')
+    //   form.append('isTemplate', '0')
+    //   uploadKnowledgeFile(form).then(() => {
+    //     this.$modal.msgSuccess('上传成功')
+    //     this.loadFiles()
+    //   })
+    // },
     parseFile(row) {
       parseKnowledgeFile(row.knowledgeFileId).then(() => {
         this.$modal.msgSuccess('解析完成')

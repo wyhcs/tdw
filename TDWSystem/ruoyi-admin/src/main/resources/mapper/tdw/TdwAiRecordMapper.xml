@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.tdw.mapper.TdwAiRecordMapper">
+
+    <resultMap type="TdwAiRecord" id="TdwAiRecordResult">
+        <result property="id" column="id" />
+        <result property="taskId" column="task_id" />
+        <result property="moduleType" column="module_type" />
+        <result property="bizId" column="biz_id" />
+        <result property="targetType" column="target_type" />
+        <result property="targetId" column="target_id" />
+        <result property="taskType" column="task_type" />
+        <result property="promptKey" column="prompt_key" />
+        <result property="promptVersion" column="prompt_version" />
+        <result property="systemPrompt" column="system_prompt" />
+        <result property="userPrompt" column="user_prompt" />
+        <result property="finalPrompt" column="final_prompt" />
+        <result property="inputText" column="input_text" />
+        <result property="outputText" column="output_text" />
+        <result property="outputJson" column="output_json" />
+        <result property="requestJson" column="request_json" />
+        <result property="responseJson" column="response_json" />
+        <result property="providerName" column="provider_name" />
+        <result property="modelName" column="model_name" />
+        <result property="tokensInput" column="tokens_input" />
+        <result property="tokensOutput" column="tokens_output" />
+        <result property="elapsedMs" column="elapsed_ms" />
+        <result property="status" column="status" />
+        <result property="errorMessage" column="error_message" />
+        <result property="delFlag" column="del_flag" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectTdwAiRecordVo">
+        select id, task_id, module_type, biz_id, target_type, target_id, task_type, prompt_key,
+               prompt_version, system_prompt, user_prompt, final_prompt, input_text, output_text,
+               output_json, request_json, response_json, provider_name, model_name, tokens_input,
+               tokens_output, elapsed_ms, status, error_message, del_flag, create_by, create_time,
+               update_by, update_time, remark
+        from tdw_ai_record
+    </sql>
+
+    <select id="selectTdwAiRecordById" resultMap="TdwAiRecordResult">
+        <include refid="selectTdwAiRecordVo" />
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectByTaskId" resultMap="TdwAiRecordResult">
+        <include refid="selectTdwAiRecordVo" />
+        where task_id = #{taskId} and del_flag = '0'
+        order by id desc
+    </select>
+
+    <insert id="insertTdwAiRecord" parameterType="TdwAiRecord" useGeneratedKeys="true" keyProperty="id">
+        insert into tdw_ai_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="taskId != null">task_id,</if>
+            <if test="moduleType != null">module_type,</if>
+            <if test="bizId != null">biz_id,</if>
+            <if test="targetType != null">target_type,</if>
+            <if test="targetId != null">target_id,</if>
+            <if test="taskType != null">task_type,</if>
+            <if test="promptKey != null">prompt_key,</if>
+            <if test="promptVersion != null">prompt_version,</if>
+            <if test="systemPrompt != null">system_prompt,</if>
+            <if test="userPrompt != null">user_prompt,</if>
+            <if test="finalPrompt != null">final_prompt,</if>
+            <if test="inputText != null">input_text,</if>
+            <if test="outputText != null">output_text,</if>
+            <if test="outputJson != null">output_json,</if>
+            <if test="requestJson != null">request_json,</if>
+            <if test="responseJson != null">response_json,</if>
+            <if test="providerName != null">provider_name,</if>
+            <if test="modelName != null">model_name,</if>
+            <if test="tokensInput != null">tokens_input,</if>
+            <if test="tokensOutput != null">tokens_output,</if>
+            <if test="elapsedMs != null">elapsed_ms,</if>
+            <if test="status != null">status,</if>
+            <if test="errorMessage != null">error_message,</if>
+            del_flag,
+            create_time,
+            update_time,
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="taskId != null">#{taskId},</if>
+            <if test="moduleType != null">#{moduleType},</if>
+            <if test="bizId != null">#{bizId},</if>
+            <if test="targetType != null">#{targetType},</if>
+            <if test="targetId != null">#{targetId},</if>
+            <if test="taskType != null">#{taskType},</if>
+            <if test="promptKey != null">#{promptKey},</if>
+            <if test="promptVersion != null">#{promptVersion},</if>
+            <if test="systemPrompt != null">#{systemPrompt},</if>
+            <if test="userPrompt != null">#{userPrompt},</if>
+            <if test="finalPrompt != null">#{finalPrompt},</if>
+            <if test="inputText != null">#{inputText},</if>
+            <if test="outputText != null">#{outputText},</if>
+            <if test="outputJson != null">#{outputJson},</if>
+            <if test="requestJson != null">#{requestJson},</if>
+            <if test="responseJson != null">#{responseJson},</if>
+            <if test="providerName != null">#{providerName},</if>
+            <if test="modelName != null">#{modelName},</if>
+            <if test="tokensInput != null">#{tokensInput},</if>
+            <if test="tokensOutput != null">#{tokensOutput},</if>
+            <if test="elapsedMs != null">#{elapsedMs},</if>
+            <if test="status != null">#{status},</if>
+            <if test="errorMessage != null">#{errorMessage},</if>
+            '0',
+            now(),
+            now(),
+        </trim>
+    </insert>
+</mapper>

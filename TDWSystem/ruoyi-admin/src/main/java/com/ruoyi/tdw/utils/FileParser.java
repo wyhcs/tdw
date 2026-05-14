@@ -60,6 +60,74 @@ public class FileParser {
     }
 
     /**
+     * 解析文件全文，供标书/方案 mock 解析使用。
+     */
+    public static String parseFileText(File file, String originalName, int maxChars) throws IOException {
+        if (file == null || !file.exists()) {
+            return "";
+        }
+        String fileExtension = getFileExtension(originalName == null ? file.getName() : originalName);
+        try (InputStream inputStream = new FileInputStream(file)) {
+            return parseInputStreamText(inputStream, fileExtension, maxChars);
+        }
+    }
+
+    /**
+     * 解析 MultipartFile 全文，最大返回 maxChars 个字符。
+     */
+    public static String parseFileText(MultipartFile file, int maxChars) throws IOException {
+        if (file == null || file.isEmpty()) {
+            return "";
+        }
+        String fileExtension = getFileExtension(file.getOriginalFilename());
+        try (InputStream inputStream = file.getInputStream()) {
+            return parseInputStreamText(inputStream, fileExtension, maxChars);
+        }
+    }
+
+    private static String parseInputStreamText(InputStream inputStream, String fileExtension, int maxChars) throws IOException {
+        List<String> paragraphs;
+        switch ((fileExtension == null ? "" : fileExtension).toLowerCase()) {
+            case "txt":
+                paragraphs = parseTxtFile(inputStream);
+                break;
+            case "docx":
+                paragraphs = parseDocxFile(inputStream);
+                break;
+            case "doc":
+                paragraphs = parseDocFile(inputStream);
+                break;
+            case "pdf":
+                paragraphs = parsePdfFile(inputStream);
+                break;
+            default:
+                throw new UnsupportedOperationException("不支持的文件类型: " + fileExtension);
+        }
+        return joinParagraphs(paragraphs, maxChars);
+    }
+
+    private static String joinParagraphs(List<String> paragraphs, int maxChars) {
+        if (paragraphs == null || paragraphs.isEmpty()) {
+            return "";
+        }
+        StringBuilder content = new StringBuilder();
+        int limit = maxChars <= 0 ? Integer.MAX_VALUE : maxChars;
+        for (String para : paragraphs) {
+            if (para == null || para.trim().isEmpty()) {
+                continue;
+            }
+            if (content.length() > 0) {
+                content.append('\n');
+            }
+            content.append(para.trim());
+            if (content.length() >= limit) {
+                return content.substring(0, limit);
+            }
+        }
+        return content.toString();
+    }
+
+    /**
      * 从完整文本中提取讲话稿正文前500字（从第4行开始）
      */
     /**
