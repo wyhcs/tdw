@@ -7,6 +7,7 @@ import com.ruoyi.tdw.ai.dto.GenerateOutlineAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiResponse;
 import com.ruoyi.tdw.ai.provider.AiProviderFactory;
 import com.ruoyi.tdw.ai.service.TdwAiService;
+import java.util.function.Consumer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,12 @@ public class TdwAiServiceImpl implements TdwAiService
     public GenerateOutlineAiResponse generateOutline(GenerateOutlineAiRequest request)
     {
         return aiProviderFactory.getProvider().generateOutline(request);
+    }
+
+    @Override
+    public GenerateOutlineAiResponse generateOutline(GenerateOutlineAiRequest request, Consumer<String> outlineMarkdownConsumer)
+    {
+        return aiProviderFactory.getProvider().generateOutline(request, outlineMarkdownConsumer);
     }
 
     @Override

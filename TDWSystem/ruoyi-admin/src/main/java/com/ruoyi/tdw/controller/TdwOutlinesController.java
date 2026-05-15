@@ -2,8 +2,11 @@ package com.ruoyi.tdw.controller;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.servlet.http.HttpServletResponse;
 
 import com.ruoyi.common.annotation.Anonymous;
@@ -11,6 +14,7 @@ import io.swagger.annotations.ApiOperation;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -24,6 +28,7 @@ import com.ruoyi.tdw.domain.dto.TdwOutlineSortRequest;
 import com.ruoyi.tdw.service.ITdwOutlinesService;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 大纲节点Controller
@@ -36,6 +41,8 @@ import com.ruoyi.common.core.page.TableDataInfo;
 @RequestMapping("/tdw/outlines")
 public class TdwOutlinesController extends BaseController
 {
+    private final ExecutorService streamExecutor = Executors.newCachedThreadPool();
+
     @Autowired
     private ITdwOutlinesService tdwOutlinesService;
 
@@ -44,6 +51,35 @@ public class TdwOutlinesController extends BaseController
     public AjaxResult tree(@PathVariable Long bidId)
     {
         return success(tdwOutlinesService.selectOutlineTree(bidId));
+    }
+
+    @ApiOperation("流式生成标书大纲")
+    @PostMapping(value ="/generateOutline/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter generateOutlineStream(@RequestBody TdwOutlineGenerateRequest request) {
+        SseEmitter emitter = new SseEmitter(0L);
+        streamExecutor.execute(() -> {
+            try {
+                sendEvent(emitter, "markdown", "### 正在分析评分项与采购需求\n\n");
+                Long bidId = tdwOutlinesService.generateOutline(request, markdown -> {
+                    try {
+                        sendEvent(emitter, "markdown", markdown);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                List<TdwOutlines> outlineTree = tdwOutlinesService.selectOutlineTree(bidId);
+                String markdown = toMarkdown(outlineTree);
+                Map<String, Object> result = new HashMap<>();
+                result.put("bidId", bidId);
+                result.put("markdown", markdown);
+                result.put("outlineTree", outlineTree);
+                sendEvent(emitter, "done", result);
+                emitter.complete();
+            } catch (Exception e) {
+                completeWithError(emitter, e);
+            }
+        });
+        return emitter;
     }
 
     @ApiOperation("修改大纲标题")
@@ -124,6 +160,65 @@ public class TdwOutlinesController extends BaseController
         TdwOutlines tdwOutlines = tdwOutlinesService.selectLevelSortNumById(id);
         int level = tdwOutlinesService.deleteOutlineLeval(tdwOutlines);
         return success("success");
+    }
+
+    private String toMarkdown(List<TdwOutlines> nodes)
+    {
+        StringBuilder markdown = new StringBuilder();
+        appendMarkdown(markdown, nodes);
+        return markdown.toString();
+    }
+
+    private void appendMarkdown(StringBuilder markdown, List<TdwOutlines> nodes)
+    {
+        if (nodes == null) {
+            return;
+        }
+        for (TdwOutlines node : nodes) {
+            int level = node.getLevel() <= 0 ? 1 : node.getLevel();
+            markdown.append(repeat("#", Math.min(level + 1, 4)))
+                    .append(" ")
+                    .append(node.getTitle() == null ? "" : node.getTitle())
+                    .append("\n\n");
+            appendMarkdown(markdown, node.getChildren());
+        }
+    }
+
+    private String repeat(String text, int count)
+    {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            builder.append(text);
+        }
+        return builder.toString();
+    }
+
+    private void sendChunks(SseEmitter emitter, String eventName, String text) throws IOException, InterruptedException
+    {
+        String value = text == null ? "" : text;
+        int size = 48;
+        if (value.length() == 0) {
+            sendEvent(emitter, eventName, "");
+            return;
+        }
+        for (int i = 0; i < value.length(); i += size) {
+            sendEvent(emitter, eventName, value.substring(i, Math.min(value.length(), i + size)));
+            Thread.sleep(20L);
+        }
+    }
+
+    private void sendEvent(SseEmitter emitter, String name, Object data) throws IOException
+    {
+        emitter.send(SseEmitter.event().name(name).data(data));
+    }
+
+    private void completeWithError(SseEmitter emitter, Exception e)
+    {
+        try {
+            sendEvent(emitter, "error", e.getMessage());
+        } catch (IOException ignored) {
+        }
+        emitter.completeWithError(e);
     }
 
 }

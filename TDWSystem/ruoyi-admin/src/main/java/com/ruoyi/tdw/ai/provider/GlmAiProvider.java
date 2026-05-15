@@ -1,9 +1,13 @@
 package com.ruoyi.tdw.ai.provider;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -35,6 +39,10 @@ public class GlmAiProvider implements AiProvider
 
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
+    private static final Pattern JSON_TITLE_PATTERN = Pattern.compile("\"level\"\\s*:\\s*(\\d+)\\s*,\\s*\"title\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
+
+    private static final Pattern MARKDOWN_HEADING_PATTERN = Pattern.compile("^(#{1,6})\\s+(.+)$");
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -44,7 +52,7 @@ public class GlmAiProvider implements AiProvider
     @Value("${tdw.ai.glm.api-url:https://llmapi.paratera.com/v1/chat/completions}")
     private String apiUrl;
 
-    @Value("${tdw.ai.glm.api-key:${TDW_GLM_API_KEY:}}")
+    @Value("${tdw.ai.glm.api-key}")
     private String apiKey;
 
     @Value("${tdw.ai.glm.model:GLM-4-Flash}")
@@ -74,7 +82,21 @@ public class GlmAiProvider implements AiProvider
     @Override
     public GenerateOutlineAiResponse generateOutline(GenerateOutlineAiRequest request)
     {
-        return mockAiProvider.generateOutline(request);
+        return generateOutline(request, null);
+    }
+
+    @Override
+    public GenerateOutlineAiResponse generateOutline(GenerateOutlineAiRequest request, Consumer<String> outlineMarkdownConsumer)
+    {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append(StringUtils.defaultString(request == null ? "" : request.getRequirement()));
+        if (request != null && StringUtils.isNotBlank(request.getKnowledgeContext())) {
+            prompt.append("\n\n【知识库参考资料】\n").append(request.getKnowledgeContext());
+        }
+        OutlineStreamMarkdownAdapter adapter = new OutlineStreamMarkdownAdapter(outlineMarkdownConsumer);
+        String answer = callChatCompletion(prompt.toString(), adapter::accept);
+        adapter.flush();
+        return parseOutlineResponse(answer);
     }
 
     @Override
@@ -127,6 +149,11 @@ public class GlmAiProvider implements AiProvider
 
     private String callChatCompletion(String prompt)
     {
+        return callChatCompletion(prompt, null);
+    }
+
+    private String callChatCompletion(String prompt, Consumer<String> onContent)
+    {
         if (StringUtils.isBlank(apiKey)) {
             throw new IllegalStateException("大模型API Key未配置，请设置 TDW_GLM_API_KEY 或 tdw.ai.glm.api-key");
         }
@@ -155,17 +182,44 @@ public class GlmAiProvider implements AiProvider
                     .build();
 
             try (Response response = client.newCall(httpRequest).execute()) {
-                String responseBody = response.body() == null ? "" : response.body().string();
+                if (response.body() == null) {
+                    return "";
+                }
                 if (!response.isSuccessful()) {
+                    String responseBody = response.body().string();
                     throw new IllegalStateException("大模型请求失败：" + response.code() + "，" + truncate(responseBody, 500));
                 }
-                return stream ? parseStreamResponse(responseBody) : parseJsonResponse(responseBody);
+                if (stream) {
+                    return readStreamResponse(response, onContent);
+                }
+                String responseBody = response.body().string();
+                return parseJsonResponse(responseBody, onContent);
             }
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("构造大模型请求失败：" + e.getMessage(), e);
         } catch (IOException e) {
             throw new IllegalStateException("大模型请求异常：" + e.getMessage(), e);
         }
+    }
+
+    private String readStreamResponse(Response response, Consumer<String> onContent) throws IOException
+    {
+        StringBuilder answerContent = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(response.body().charStream())) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String value = line == null ? "" : line.trim();
+                if (value.length() == 0 || value.startsWith(":")) {
+                    continue;
+                }
+                String json = value.startsWith("data:") ? value.substring(5).trim() : value;
+                if ("[DONE]".equals(json)) {
+                    continue;
+                }
+                appendChunkContent(answerContent, json, onContent);
+            }
+        }
+        return answerContent.toString();
     }
 
     private String parseStreamResponse(String responseBody)
@@ -188,12 +242,22 @@ public class GlmAiProvider implements AiProvider
 
     private String parseJsonResponse(String responseBody)
     {
+        return parseJsonResponse(responseBody, null);
+    }
+
+    private String parseJsonResponse(String responseBody, Consumer<String> onContent)
+    {
         StringBuilder answerContent = new StringBuilder();
-        appendChunkContent(answerContent, responseBody);
+        appendChunkContent(answerContent, responseBody, onContent);
         return answerContent.toString();
     }
 
     private void appendChunkContent(StringBuilder answerContent, String json)
+    {
+        appendChunkContent(answerContent, json, null);
+    }
+
+    private void appendChunkContent(StringBuilder answerContent, String json, Consumer<String> onContent)
     {
         try {
             CompletionChunk chunk = objectMapper.readValue(json, CompletionChunk.class);
@@ -206,16 +270,24 @@ public class GlmAiProvider implements AiProvider
                 }
                 Delta delta = choice.getDelta();
                 if (delta != null && delta.getContent() != null) {
-                    answerContent.append(delta.getContent());
+                    appendContent(answerContent, delta.getContent(), onContent);
                     continue;
                 }
                 Message message = choice.getMessage();
                 if (message != null && message.getContent() != null) {
-                    answerContent.append(message.getContent());
+                    appendContent(answerContent, message.getContent(), onContent);
                 }
             }
         } catch (JsonProcessingException e) {
             log.debug("忽略无法解析的大模型流式片段：{}", truncate(json, 200));
+        }
+    }
+
+    private void appendContent(StringBuilder answerContent, String content, Consumer<String> onContent)
+    {
+        answerContent.append(content);
+        if (onContent != null && StringUtils.isNotEmpty(content)) {
+            onContent.accept(content);
         }
     }
 
@@ -235,6 +307,185 @@ public class GlmAiProvider implements AiProvider
     {
         String value = StringUtils.defaultString(text);
         return value.length() > max ? value.substring(0, max) : value;
+    }
+
+    private GenerateOutlineAiResponse parseOutlineResponse(String answer)
+    {
+        String json = extractJson(answer);
+        try {
+            GenerateOutlineAiResponse response = objectMapper.readValue(json, GenerateOutlineAiResponse.class);
+            if (response.getNodes() != null && !response.getNodes().isEmpty()) {
+                return response;
+            }
+        } catch (Exception e) {
+            GenerateOutlineAiResponse markdownResponse = parseMarkdownOutlineResponse(answer);
+            if (markdownResponse.getNodes() != null && !markdownResponse.getNodes().isEmpty()) {
+                return markdownResponse;
+            }
+            log.warn("大模型大纲解析失败，使用mock兜底。原始响应：{}", truncate(answer, 500));
+        }
+        return mockAiProvider.generateOutline(new GenerateOutlineAiRequest());
+    }
+
+    private String extractJson(String answer)
+    {
+        String value = StringUtils.defaultString(answer).trim();
+        if (value.startsWith("```")) {
+            value = value.replaceFirst("^```(?:json|JSON|markdown)?\\s*", "");
+            value = value.replaceFirst("\\s*```$", "");
+        }
+        int objectStart = value.indexOf('{');
+        int objectEnd = value.lastIndexOf('}');
+        if (objectStart >= 0 && objectEnd > objectStart) {
+            return value.substring(objectStart, objectEnd + 1);
+        }
+        return value;
+    }
+
+    private GenerateOutlineAiResponse parseMarkdownOutlineResponse(String answer)
+    {
+        GenerateOutlineAiResponse response = new GenerateOutlineAiResponse();
+        List<GenerateOutlineAiResponse.OutlineNode> roots = new ArrayList<GenerateOutlineAiResponse.OutlineNode>();
+        GenerateOutlineAiResponse.OutlineNode[] stack = new GenerateOutlineAiResponse.OutlineNode[4];
+        int[] sortNums = new int[4];
+        String[] lines = stripMarkdownFence(answer).split("\\r?\\n");
+        for (String line : lines) {
+            String value = line == null ? "" : line.trim();
+            Matcher matcher = MARKDOWN_HEADING_PATTERN.matcher(value);
+            if (!matcher.matches()) {
+                continue;
+            }
+            int markdownLevel = matcher.group(1).length();
+            int outlineLevel = markdownLevel <= 1 ? 1 : Math.min(markdownLevel - 1, 3);
+            String title = matcher.group(2).trim();
+            if (StringUtils.isBlank(title)) {
+                continue;
+            }
+            GenerateOutlineAiResponse.OutlineNode node = new GenerateOutlineAiResponse.OutlineNode();
+            node.setLevel(outlineLevel);
+            node.setTitle(title);
+            node.setWordLimit(outlineLevel >= 3 ? 500 : 300);
+            sortNums[outlineLevel]++;
+            node.setSortNum(sortNums[outlineLevel]);
+            for (int i = outlineLevel + 1; i < sortNums.length; i++) {
+                sortNums[i] = 0;
+                stack[i] = null;
+            }
+            if (outlineLevel <= 1 || stack[outlineLevel - 1] == null) {
+                roots.add(node);
+            } else {
+                stack[outlineLevel - 1].getChildren().add(node);
+            }
+            stack[outlineLevel] = node;
+        }
+        response.setNodes(roots);
+        return response;
+    }
+
+    private String stripMarkdownFence(String answer)
+    {
+        String value = StringUtils.defaultString(answer).trim();
+        value = value.replaceFirst("^```(?:markdown|MARKDOWN|json|JSON)?\\s*", "");
+        value = value.replaceFirst("\\s*```$", "");
+        return value.replaceAll("(?m)^```\\s*$", "").replaceAll("(?m)^markdown\\s*$", "");
+    }
+
+    private String toHeadingMarkdown(int outlineLevel, String title)
+    {
+        int markdownLevel = Math.min(Math.max(outlineLevel + 1, 2), 4);
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < markdownLevel; i++) {
+            builder.append('#');
+        }
+        return builder.append(' ').append(title).append("\n\n").toString();
+    }
+
+    private String unescapeJsonText(String value)
+    {
+        return StringUtils.defaultString(value)
+                .replace("\\\"", "\"")
+                .replace("\\n", "\n")
+                .replace("\\r", "")
+                .replace("\\\\", "\\");
+    }
+
+    private class OutlineStreamMarkdownAdapter
+    {
+        private final Consumer<String> consumer;
+        private final StringBuilder buffer = new StringBuilder();
+        private int emittedJsonTitleCount = 0;
+        private int emittedMarkdownHeadingCount = 0;
+
+        private OutlineStreamMarkdownAdapter(Consumer<String> consumer)
+        {
+            this.consumer = consumer;
+        }
+
+        private void accept(String chunk)
+        {
+            if (StringUtils.isEmpty(chunk)) {
+                return;
+            }
+            buffer.append(chunk);
+            emitJsonTitles();
+            emitMarkdownHeadings(false);
+        }
+
+        private void flush()
+        {
+            emitJsonTitles();
+            emitMarkdownHeadings(true);
+        }
+
+        private void emitJsonTitles()
+        {
+            if (consumer == null) {
+                return;
+            }
+            List<String> headings = new ArrayList<String>();
+            Matcher matcher = JSON_TITLE_PATTERN.matcher(buffer);
+            while (matcher.find()) {
+                int outlineLevel = 1;
+                try {
+                    outlineLevel = Integer.parseInt(matcher.group(1));
+                } catch (NumberFormatException ignored) {
+                }
+                headings.add(toHeadingMarkdown(outlineLevel, unescapeJsonText(matcher.group(2)).trim()));
+            }
+            for (int i = emittedJsonTitleCount; i < headings.size(); i++) {
+                consumer.accept(headings.get(i));
+            }
+            emittedJsonTitleCount = headings.size();
+        }
+
+        private void emitMarkdownHeadings(boolean includeLastLine)
+        {
+            if (consumer == null || emittedJsonTitleCount > 0) {
+                return;
+            }
+            String[] lines = stripMarkdownFence(buffer.toString()).split("\\r?\\n", includeLastLine ? -1 : 0);
+            int completeLineCount = lines.length;
+            if (!includeLastLine && buffer.length() > 0 && buffer.charAt(buffer.length() - 1) != '\n') {
+                completeLineCount = Math.max(completeLineCount - 1, 0);
+            }
+            List<String> headings = new ArrayList<String>();
+            for (int i = 0; i < completeLineCount; i++) {
+                String value = lines[i] == null ? "" : lines[i].trim();
+                Matcher matcher = MARKDOWN_HEADING_PATTERN.matcher(value);
+                if (matcher.matches()) {
+                    int markdownLevel = Math.min(Math.max(matcher.group(1).length(), 2), 4);
+                    StringBuilder heading = new StringBuilder();
+                    for (int j = 0; j < markdownLevel; j++) {
+                        heading.append('#');
+                    }
+                    headings.add(heading.append(' ').append(matcher.group(2).trim()).append("\n\n").toString());
+                }
+            }
+            for (int i = emittedMarkdownHeadingCount; i < headings.size(); i++) {
+                consumer.accept(headings.get(i));
+            }
+            emittedMarkdownHeadingCount = headings.size();
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

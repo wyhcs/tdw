@@ -5,10 +5,13 @@ import com.ruoyi.tdw.ai.dto.GenerateContentAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateContentAiResponse;
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiResponse;
+import java.util.function.Consumer;
 
 public interface TdwAiService
 {
     GenerateOutlineAiResponse generateOutline(GenerateOutlineAiRequest request);
+
+    GenerateOutlineAiResponse generateOutline(GenerateOutlineAiRequest request, Consumer<String> outlineMarkdownConsumer);
 
     GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request);
 

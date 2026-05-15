@@ -355,10 +355,35 @@
 
         <section class="preview-panel">
           <div class="preview-title">
-            <span>预览目录 {{ outlineRows.length }}</span>
+            <span>预览目录 {{ outlineRows.length || outlineMarkdown.length }}</span>
             <small><i class="el-icon-bell" /> 一键差异化目录可改变标题内容，减少查重隐患</small>
           </div>
-          <div class="outline-preview">
+          <div v-if="generatingOutline" class="markdown-stream-preview">
+            <pre>{{ outlineMarkdown }}</pre>
+          </div>
+          <div v-else-if="activeStep >= 4 && outlineRows.length" class="outline-adjust-area">
+            <div class="outline-adjust-tree">
+              <div class="outline-column-title">大纲</div>
+              <button
+                v-for="node in outlineRows"
+                :key="node.id"
+                class="outline-row"
+                :class="'level-' + node.level"
+                @click="openEditorWithOutline(node)"
+              >
+                <span>{{ node.title }}</span>
+                <em>{{ levelText(node.level) }}</em>
+              </button>
+            </div>
+            <div
+              class="outline-rich-editor outline-title-editor"
+              contenteditable="true"
+              spellcheck="false"
+              @input="handleOutlineEditorInput"
+              v-html="outlineEditorHtml"
+            />
+          </div>
+          <div v-else class="outline-preview">
             <div v-if="!outlineRows.length" class="outline-empty">
               <div class="outline-column-title">大纲</div>
               <p>暂无目录，请在左侧输入目录要求，点击下方生成按钮，生成目录</p>
@@ -377,32 +402,24 @@
             </template>
           </div>
 
-          <div v-if="outlineRows.length" class="content-stage">
-            <div class="stage-title">第二阶段：上传全文段落生成提示词</div>
-            <el-upload
-              action="#"
-              :auto-upload="false"
-              :limit="1"
-              :file-list="promptFileList"
-              :on-change="handlePromptChange"
-              :on-remove="handlePromptRemove"
-            >
-              <el-button size="small" icon="el-icon-upload2">上传{{ form.category }}类-全文段落生成提示词.docx</el-button>
-              <span slot="tip" class="el-upload__tip">支持 doc/docx，文件大小不超过 50MB</span>
-            </el-upload>
-          </div>
-
           <div class="preview-actions">
             <el-button :type="mode === 'accurate' ? 'primary' : ''" plain @click="mode = 'accurate'">精准模式</el-button>
             <el-button :type="mode === 'rich' ? 'primary' : ''" plain @click="mode = 'rich'">丰富模式</el-button>
+            <el-button
+              v-if="outlineRows.length"
+              plain
+              icon="el-icon-refresh"
+              :loading="generatingOutline"
+              @click="openOutlineStyleDialog(true)"
+            />
             <el-button
               v-if="!outlineRows.length"
               type="primary"
               icon="el-icon-magic-stick"
               :loading="generatingOutline"
-              @click="submitGenerateOutline"
+              @click="openOutlineStyleDialog(false)"
             >
-              生成目录
+              {{ generatingOutline ? '正在补全' + (mode === 'accurate' ? '精准' : '丰富') + '目录' : '生成目录' }}
             </el-button>
             <el-button
               v-else
@@ -423,6 +440,30 @@
       :submitting="wordSubmitting"
       @confirm="confirmWordPreset"
     />
+
+    <el-dialog
+      title="选择写作风格"
+      :visible.sync="outlineStyleDialogVisible"
+      width="460px"
+      append-to-body
+      class="outline-style-dialog"
+    >
+      <p class="style-dialog-tip">不同的风格将影响AI生成的内容语气和表达方式</p>
+      <el-radio-group v-model="selectedWritingStyle" class="style-options">
+        <el-radio
+          v-for="item in writingStyleOptions"
+          :key="item.value"
+          :label="item.value"
+          border
+        >
+          {{ item.label }}
+        </el-radio>
+      </el-radio-group>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="outlineStyleDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="generatingOutline" @click="confirmGenerateOutline">确认</el-button>
+      </span>
+    </el-dialog>
 
     <el-dialog
       title="技术偏离表模板选择"
@@ -510,7 +551,7 @@ import {
   updateBids,
   uploadPlanMaterial
 } from '@/api/bid/bids'
-import { generateOutline, getOutlineTree } from '@/api/bid/outlines'
+import { getOutlineTree } from '@/api/bid/outlines'
 import { generateContentBlocks } from '@/api/bid/contents'
 import { applyPlanWordPreset } from '@/api/bid/planOutline'
 import { streamPost } from '@/utils/aiStream'
@@ -582,6 +623,8 @@ export default {
       generatingContent: false,
       wordDialogVisible: false,
       wordSubmitting: false,
+      outlineStyleDialogVisible: false,
+      regenerateOutlineAfterStyle: false,
       techDeviationDialogVisible: false,
       scoreCompareVisible: false,
       parsingMaterial: false,
@@ -592,6 +635,9 @@ export default {
       selectedDeviationTemplate: 'template1',
       parseReady: false,
       parseBuffers: {},
+      selectedWritingStyle: '通用型',
+      outlineMarkdown: '',
+      outlineEditorMarkdown: '',
       collapsedSections: {},
       mode: 'accurate',
       form: {
@@ -638,6 +684,13 @@ export default {
         { label: '标准版', value: 'standard', desc: '无次数限制', footer: '将消耗会员套餐', icon: 'el-icon-s-marketing' },
         { label: '旗舰版', value: 'flagship', desc: '今日剩余3次', footer: '将消耗会员套餐', icon: 'el-icon-trophy' },
         { label: '专业版', value: 'pro', desc: '', footer: '', tag: '去充值>', warn: '请充值字数套餐', icon: 'el-icon-medal' }
+      ],
+      writingStyleOptions: [
+        { label: '通用型', value: '通用型' },
+        { label: '简洁型', value: '简洁型' },
+        { label: '专业型', value: '专业型' },
+        { label: '拆解型', value: '拆解型' },
+        { label: '承诺型', value: '承诺型' }
       ],
       deviationDraftRows: [createEmptyDeviationRow()],
       deviationColumns: [
@@ -773,6 +826,9 @@ export default {
     techDeviationRowText() {
       if (!this.form.techDeviation) return ''
       return this.formatTechDeviationTableText(this.form.techDeviationRows)
+    },
+    outlineEditorHtml() {
+      return this.markdownToOutlineHtml(this.outlineMarkdown || this.outlineTreeToMarkdown(this.outlineTree))
     }
   },
   watch: {
@@ -837,6 +893,8 @@ export default {
       this.fieldFileLists = {}
       this.fieldFileIds = {}
       this.fieldParsing = {}
+      this.outlineStyleDialogVisible = false
+      this.regenerateOutlineAfterStyle = false
       this.techDeviationDialogVisible = false
       this.scoreCompareVisible = false
       this.parsingMaterial = false
@@ -845,6 +903,9 @@ export default {
       this.extractingTechnicalScore = false
       this.extractingRequirementScore = false
       this.parseBuffers = {}
+      this.selectedWritingStyle = '通用型'
+      this.outlineMarkdown = ''
+      this.outlineEditorMarkdown = ''
       this.selectedDeviationTemplate = 'template1'
       this.deviationDraftRows = [createEmptyDeviationRow()]
       this.subcategoryMap = {
@@ -903,7 +964,9 @@ export default {
         this.applyParseReport(reportRes.data)
         this.outlineTree = outlineRes.data || []
         if (this.outlineRows.length) {
-          this.activeStep = Math.max(this.activeStep, 3)
+          this.outlineMarkdown = this.outlineTreeToMarkdown(this.outlineTree)
+          this.outlineEditorMarkdown = this.outlineMarkdown
+          this.activeStep = Math.max(this.activeStep, 4)
         } else if (this.parseReady || this.tenderReportId) {
           this.activeStep = Math.max(this.activeStep, 2)
         }
@@ -940,7 +1003,10 @@ export default {
       const aiEdition = valueOf('AI版本')
       if (aiEdition) this.form.aiEdition = aiEdition
       const writeStyle = valueOf('写作风格')
-      if (writeStyle) this.form.writeStyle = writeStyle
+      if (writeStyle) {
+        this.form.writeStyle = writeStyle
+        this.selectedWritingStyle = writeStyle
+      }
       const targetWords = Number(valueOf('目标字数'))
       if (targetWords) this.form.targetWords = targetWords
       const techDeviation = valueOf('技术偏离表')
@@ -1090,6 +1156,8 @@ export default {
       this.extractingRequirementScore = false
       this.scoreCompareVisible = false
       this.activeStep = 1
+      this.outlineMarkdown = ''
+      this.outlineEditorMarkdown = ''
     },
     selectCategory(category) {
       if (this.form.category !== category) {
@@ -1657,10 +1725,24 @@ export default {
       }
       return true
     },
+    openOutlineStyleDialog(regenerate) {
+      this.$refs.form.validate(valid => {
+        if (!valid) return
+        this.regenerateOutlineAfterStyle = !!regenerate
+        this.outlineStyleDialogVisible = true
+      })
+    },
+    confirmGenerateOutline() {
+      this.outlineStyleDialogVisible = false
+      this.form.writeStyle = this.selectedWritingStyle
+      this.submitGenerateOutline()
+    },
     submitGenerateOutline() {
       this.$refs.form.validate(valid => {
         if (!valid) return
         this.generatingOutline = true
+        this.outlineMarkdown = ''
+        this.outlineEditorMarkdown = ''
         this.ensurePlanUploadedForParse().then(() => {
           this.activeStep = 3
           if (this.tenderReportId) {
@@ -1675,20 +1757,33 @@ export default {
             return report.id
           })
         }).then(reportId => {
-          return generateOutline({
+          return streamPost('/tdw/outlines/generateOutline/stream', {
             bidId: this.bidId,
             mode: 'overwrite',
             tenderParseReportId: reportId,
-            requirement: this.buildOutlineRequirement()
+            requirement: this.buildOutlineRequirement(),
+            writingStyle: this.selectedWritingStyle
+          }, {
+            onEvent: (eventName, payload) => {
+              if (eventName === 'markdown') {
+                this.outlineMarkdown += typeof payload === 'string' ? payload : ''
+              } else if (eventName === 'done') {
+                const result = payload || {}
+                this.outlineTree = result.outlineTree || this.outlineTree
+                this.outlineMarkdown = result.markdown || this.outlineMarkdown || this.outlineTreeToMarkdown(this.outlineTree)
+                this.outlineEditorMarkdown = this.outlineMarkdown
+              }
+            },
+            onError: payload => {
+              throw new Error(payload || '目录生成失败')
+            }
           })
         }).then(() => {
-          if (!this.bidId) return
-          return this.loadOutline()
-        }).then(() => {
           this.$modal.msgSuccess('目录生成完成')
-          this.wordDialogVisible = true
           this.activeStep = 4
           this.loadPlans()
+        }).catch(error => {
+          this.$modal.msgError((error && error.message) || '目录生成失败')
         }).finally(() => {
           this.generatingOutline = false
         })
@@ -1819,6 +1914,56 @@ export default {
         const value = this.form.fields[section.key]
         return value ? section.label + '：\n' + value : ''
       }).filter(Boolean).join('\n')
+    },
+    outlineTreeToMarkdown(nodes) {
+      const lines = []
+      const walk = items => {
+        ;(items || []).forEach(node => {
+          const level = Math.min((Number(node.level) || 1) + 1, 4)
+          lines.push('#'.repeat(level) + ' ' + (node.title || ''))
+          lines.push('')
+          walk(node.children || [])
+        })
+      }
+      walk(nodes)
+      return lines.join('\n')
+    },
+    markdownToOutlineHtml(markdown) {
+      const lines = (markdown || '').split(/\r?\n/)
+      return lines.map(line => {
+        const value = line.trim()
+        if (!value) return ''
+        const match = value.match(/^(#{1,6})\s+(.+)$/)
+        if (match) {
+          const level = Math.min(Math.max(match[1].length, 2), 4)
+          return '<div class="outline-editor-line outline-editor-h' + level + '">' +
+            '<span class="outline-heading-mark" contenteditable="false">H' + level + '</span>' +
+            '<span class="outline-heading-text">' + this.escapeHtml(match[2]) + '</span>' +
+            '</div>'
+        }
+        return '<div class="outline-editor-line outline-editor-p">' +
+          '<span class="outline-heading-mark" contenteditable="false"></span>' +
+          '<span class="outline-heading-text">' + this.escapeHtml(value) + '</span>' +
+          '</div>'
+      }).join('')
+    },
+    escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, char => {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+        return map[char]
+      })
+    },
+    handleOutlineEditorInput(event) {
+      const rows = Array.prototype.slice.call(event.target.querySelectorAll('.outline-editor-line'))
+      this.outlineEditorMarkdown = rows.map(row => {
+        const textEl = row.querySelector('.outline-heading-text')
+        const text = textEl ? textEl.innerText.trim() : ''
+        if (!text) return ''
+        if (row.classList.contains('outline-editor-h2')) return '## ' + text
+        if (row.classList.contains('outline-editor-h3')) return '### ' + text
+        if (row.classList.contains('outline-editor-h4')) return '#### ' + text
+        return text
+      }).filter(Boolean).join('\n\n')
     },
     directoryModeText() {
       const mode = this.directoryModes.find(item => item.value === this.form.directoryMode)
@@ -2428,6 +2573,92 @@ export default {
   flex-direction: column;
   border-bottom: 1px solid #cfd6e3;
 }
+.markdown-stream-preview {
+  flex: 1;
+  min-height: 360px;
+  overflow: auto;
+  padding: 18px 24px;
+  background: #fff;
+  border-bottom: 1px solid #cfd6e3;
+}
+.markdown-stream-preview pre {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.9;
+  color: #303133;
+  font-family: inherit;
+  font-size: 15px;
+}
+.outline-adjust-area {
+  flex: 1;
+  min-height: 360px;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  overflow: hidden;
+  border-top: 1px solid #dfe4ee;
+  border-bottom: 1px solid #cfd6e3;
+}
+.outline-adjust-tree {
+  min-width: 0;
+  overflow: auto;
+  border-right: 1px solid #dfe4ee;
+  background: #fbfcff;
+}
+.outline-rich-editor {
+  min-width: 0;
+  overflow: auto;
+  padding: 18px 30px;
+  background: #fff;
+  color: #222;
+  line-height: 1.6;
+  outline: none;
+}
+.outline-title-editor {
+  font-size: 14px;
+}
+.outline-editor-line {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 14px;
+  min-height: 30px;
+}
+.outline-heading-mark {
+  color: #b4bbc8;
+  font-size: 13px;
+  user-select: none;
+}
+.outline-heading-text {
+  min-width: 0;
+  outline: none;
+}
+.outline-editor-h2 {
+  margin: 12px 0 8px;
+}
+.outline-editor-h2 .outline-heading-text {
+  font-size: 20px;
+  line-height: 1.8;
+  font-weight: 700;
+}
+.outline-editor-h3 {
+  margin: 8px 0 5px;
+}
+.outline-editor-h3 .outline-heading-text {
+  font-size: 17px;
+  line-height: 1.7;
+  font-weight: 700;
+}
+.outline-editor-h4 {
+  margin: 4px 0;
+}
+.outline-editor-h4 .outline-heading-text {
+  font-size: 15px;
+  line-height: 1.65;
+  font-weight: 500;
+}
+.outline-editor-p .outline-heading-text {
+  color: #606266;
+}
 .outline-empty {
   flex: 1;
   display: grid;
@@ -2472,16 +2703,6 @@ export default {
   font-style: normal;
   color: #a8abb2;
   font-size: 12px;
-}
-.content-stage {
-  padding: 14px;
-  border-bottom: 1px solid #dfe4ee;
-  background: #fbfcff;
-}
-.stage-title {
-  margin-bottom: 8px;
-  font-weight: 700;
-  color: #303133;
 }
 .preview-actions {
   min-height: 74px;
@@ -2545,6 +2766,26 @@ export default {
   line-height: 22px;
   color: #606266;
   resize: vertical;
+}
+.outline-style-dialog ::v-deep .el-dialog__body {
+  padding: 20px 24px 10px;
+}
+.style-dialog-tip {
+  margin: 0 0 14px;
+  color: #8a94a6;
+  font-size: 13px;
+}
+.style-options {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.style-options .el-radio {
+  margin: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
 }
 @media (max-width: 1280px) {
   .plan-create-page {

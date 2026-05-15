@@ -14,6 +14,8 @@ public class TdwOutlineGenerateRequest
 
     private String requirement;
 
+    private String writingStyle;
+
     private Long tenderParseReportId;
 
     private List<Long> templateFileIds;
@@ -48,6 +50,16 @@ public class TdwOutlineGenerateRequest
     public void setRequirement(String requirement)
     {
         this.requirement = requirement;
+    }
+
+    public String getWritingStyle()
+    {
+        return writingStyle;
+    }
+
+    public void setWritingStyle(String writingStyle)
+    {
+        this.writingStyle = writingStyle;
     }
 
     public Long getTenderParseReportId()

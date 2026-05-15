@@ -3,6 +3,7 @@ package com.ruoyi.tdw.service;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ruoyi.tdw.domain.TdwOutlines;
@@ -72,6 +73,8 @@ public interface ITdwOutlinesService
     Long generateOutline(Long id, List<Long> knowledgeFileIds) throws IOException;
 
     Long generateOutline(TdwOutlineGenerateRequest request) throws IOException;
+
+    Long generateOutline(TdwOutlineGenerateRequest request, Consumer<String> outlineMarkdownConsumer) throws IOException;
 
     List<TdwOutlines> selectOutlineTree(Long bidId);
 

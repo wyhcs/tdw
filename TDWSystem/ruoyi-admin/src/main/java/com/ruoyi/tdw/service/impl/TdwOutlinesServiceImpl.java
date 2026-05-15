@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.function.Consumer;
 
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiResponse;
+import com.ruoyi.tdw.ai.prompt.TdwPromptTemplateService;
 import com.ruoyi.tdw.ai.service.TdwAiService;
 import com.ruoyi.tdw.domain.TdwBids;
 import com.ruoyi.tdw.domain.TdwOutlineClosure;
@@ -20,6 +22,7 @@ import com.ruoyi.tdw.domain.dto.TdwOutlineMoveRequest;
 import com.ruoyi.tdw.domain.dto.TdwOutlineSortRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.tdw.mapper.TdwOutlinesMapper;
@@ -70,6 +73,8 @@ public class TdwOutlinesServiceImpl implements ITdwOutlinesService
     private ITdwKnowledgeService tdwKnowledgeService;
     @Autowired
     private TdwTenderParseReportMapper tenderParseReportMapper;
+    @Autowired
+    private TdwPromptTemplateService promptTemplateService;
 
     // 临时的节点ID生成器，从10开始，和我们的测试ID对齐
     private AtomicLong nextNodeId = new AtomicLong(10);
@@ -626,6 +631,12 @@ public class TdwOutlinesServiceImpl implements ITdwOutlinesService
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long generateOutline(TdwOutlineGenerateRequest request) throws IOException {
+        return generateOutline(request, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long generateOutline(TdwOutlineGenerateRequest request, Consumer<String> outlineMarkdownConsumer) throws IOException {
         if (request == null || request.getBidId() == null) {
             throw new IllegalArgumentException("bid not found");
         }
@@ -640,7 +651,8 @@ public class TdwOutlinesServiceImpl implements ITdwOutlinesService
         }
 
         List<Long> knowledgeFileIds = mergeKnowledgeFileIds(tdwBids, request);
-        String prompt = buildOutlinePrompt(tdwBids.getCategory(), tdwBids.getTitle(), buildOutlineRequirement(tdwBids, request));
+        String prompt = buildOutlinePrompt(tdwBids.getCategory(), tdwBids.getTitle(),
+                buildOutlineRequirement(tdwBids, request), request.getWritingStyle());
         GenerateOutlineAiRequest aiRequest = new GenerateOutlineAiRequest();
         aiRequest.setBidId(bidId);
         aiRequest.setProjectName(tdwBids.getTitle());
@@ -649,7 +661,7 @@ public class TdwOutlinesServiceImpl implements ITdwOutlinesService
         aiRequest.setKnowledgeFileIds(knowledgeFileIds);
         aiRequest.setKnowledgeContext(tdwKnowledgeService.buildKnowledgeContext(knowledgeFileIds, null));
 
-        GenerateOutlineAiResponse aiResponse = tdwAiService.generateOutline(aiRequest);
+        GenerateOutlineAiResponse aiResponse = tdwAiService.generateOutline(aiRequest, outlineMarkdownConsumer);
         // 2. 解析大模型返回的JSON
         if (aiResponse == null || aiResponse.getNodes() == null || aiResponse.getNodes().isEmpty()) {
             throw new IllegalStateException("AI outline is empty");
@@ -891,11 +903,21 @@ public class TdwOutlinesServiceImpl implements ITdwOutlinesService
      * @param scoreItems 评分项信息
      * @return 最终提示词
      */
-    private String buildOutlinePrompt(String projectType, String projectName, String scoreItems) {
+    private String buildOutlinePrompt(String projectType, String projectName, String scoreItems, String writingStyle) {
+        String promptPath = outlinePromptPath(projectType, writingStyle);
+        if (promptPath != null) {
+            Map<String, String> variables = new HashMap<>();
+            variables.put("projectName", projectName == null ? "" : projectName);
+            variables.put("projectType", projectType == null ? "" : projectType);
+            variables.put("scoreItems", scoreItems == null ? "" : scoreItems);
+            variables.put("requirement", scoreItems == null ? "" : scoreItems);
+            variables.put("writingStyle", writingStyle == null ? "通用型" : writingStyle);
+            return promptTemplateService.render(promptPath, variables);
+        }
         Map<String, String> extraParams = null;
         // 1. 根据类型选择对应的模板
         String template;
-        switch (projectType) {
+        switch (normalizeProjectType(projectType)) {
             case "服务":
                 template = outlineService;
                 break;
@@ -927,6 +949,53 @@ public class TdwOutlinesServiceImpl implements ITdwOutlinesService
                 .replace("{scoreItems}", scoreItems);
 
         return template;
+    }
+
+    private String outlinePromptPath(String projectType, String writingStyle)
+    {
+        String categoryKey = normalizeProjectTypeKey(projectType);
+        String styleKey = normalizeWritingStyleKey(writingStyle);
+        String path = "prompts/ai-plan/outline/" + categoryKey + "/" + styleKey + ".md";
+        if (new ClassPathResource(path).exists()) {
+            return path;
+        }
+        String commonPath = "prompts/ai-plan/outline/common/" + styleKey + ".md";
+        if (new ClassPathResource(commonPath).exists()) {
+            return commonPath;
+        }
+        return null;
+    }
+
+    private String normalizeProjectType(String projectType)
+    {
+        String value = projectType == null ? "" : projectType;
+        if (value.contains("服务")) return "服务";
+        if (value.contains("货物")) return "货物";
+        if (value.contains("工程")) return "工程";
+        if (value.contains("监理")) return "监理";
+        if (value.contains("IT") || value.contains("信息")) return "IT信息";
+        return "其它";
+    }
+
+    private String normalizeProjectTypeKey(String projectType)
+    {
+        String value = normalizeProjectType(projectType);
+        if ("服务".equals(value)) return "service";
+        if ("货物".equals(value)) return "goods";
+        if ("工程".equals(value)) return "engineering";
+        if ("监理".equals(value)) return "supervision";
+        if ("IT信息".equals(value)) return "it";
+        return "other";
+    }
+
+    private String normalizeWritingStyleKey(String writingStyle)
+    {
+        String value = writingStyle == null ? "" : writingStyle;
+        if (value.contains("简洁")) return "concise";
+        if (value.contains("专业")) return "professional";
+        if (value.contains("拆解")) return "breakdown";
+        if (value.contains("承诺")) return "commitment";
+        return "general";
     }
 
 }

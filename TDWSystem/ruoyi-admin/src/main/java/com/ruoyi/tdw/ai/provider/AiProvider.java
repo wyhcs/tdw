@@ -5,6 +5,7 @@ import com.ruoyi.tdw.ai.dto.GenerateContentAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateContentAiResponse;
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiResponse;
+import java.util.function.Consumer;
 
 /**
  * AI provider abstraction. Real model providers should implement this interface
@@ -15,6 +16,11 @@ public interface AiProvider
     String getName();
 
     GenerateOutlineAiResponse generateOutline(GenerateOutlineAiRequest request);
+
+    default GenerateOutlineAiResponse generateOutline(GenerateOutlineAiRequest request, Consumer<String> outlineMarkdownConsumer)
+    {
+        return generateOutline(request);
+    }
 
     GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request);
 
