@@ -103,6 +103,7 @@ public class TdwPlanOutlineServiceImpl implements ITdwPlanOutlineService
             wordLimit = presetToWordLimit(request.getPreset(), wordLimit);
         }
         List<Long> leafIds = outlinesMapper.selectTdwOutlinesByLevel(bidId, 3).stream()
+                .filter(item -> item.getContentWords() <= 0)
                 .map(TdwOutlines::getId)
                 .collect(Collectors.toList());
         if (!leafIds.isEmpty()) {
@@ -123,6 +124,9 @@ public class TdwPlanOutlineServiceImpl implements ITdwPlanOutlineService
     public Map<String, Object> updateNodeWordLimit(Long bidId, Long outlineId, TdwPlanWordLimitRequest request)
     {
         TdwOutlines outline = requireOutlineInBid(bidId, outlineId);
+        if (outline.getLevel() == 3 && outline.getContentWords() > 0) {
+            throw new IllegalArgumentException("已经生成内容的段落无法修改字数");
+        }
         outlinesMapper.updateOutlineWordLimit(outline.getId(), normalizeWordLimit(request == null ? null : request.getWordLimit()));
         return getOverview(bidId);
     }
@@ -135,7 +139,10 @@ public class TdwPlanOutlineServiceImpl implements ITdwPlanOutlineService
         List<TdwOutlines> leaves = outline.getLevel() == 3
                 ? Arrays.asList(outline)
                 : outlinesMapper.selectContentTitleOutlinesByAncestor(outline.getId());
-        List<Long> ids = leaves.stream().map(TdwOutlines::getId).collect(Collectors.toList());
+        List<Long> ids = leaves.stream()
+                .filter(item -> item.getContentWords() <= 0)
+                .map(TdwOutlines::getId)
+                .collect(Collectors.toList());
         if (!ids.isEmpty()) {
             outlinesMapper.updateOutlineWordLimitByIds(ids, normalizeWordLimit(request == null ? null : request.getWordLimit()));
         }

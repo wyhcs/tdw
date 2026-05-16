@@ -51,6 +51,13 @@ public class TdwPlanOutlineController extends BaseController
         return success(planOutlineService.getOverview(bidId));
     }
 
+    @ApiOperation("AI方案进入编辑")
+    @GetMapping("/edit")
+    public AjaxResult edit(@PathVariable Long bidId)
+    {
+        return success(planOutlineService.getOverview(bidId));
+    }
+
     @ApiOperation("AI方案设置篇幅")
     @PostMapping("/word-preset")
     public AjaxResult wordPreset(@PathVariable Long bidId, @RequestBody TdwPlanWordPresetRequest request)

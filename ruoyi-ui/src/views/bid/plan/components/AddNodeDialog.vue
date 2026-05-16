@@ -53,22 +53,10 @@
 export default {
   name: 'AddNodeDialog',
   props: {
-    visible: {
-      type: Boolean,
-      default: false
-    },
-    node: {
-      type: Object,
-      default: null
-    },
-    mode: {
-      type: String,
-      default: 'sibling'
-    },
-    submitting: {
-      type: Boolean,
-      default: false
-    }
+    visible: { type: Boolean, default: false },
+    node: { type: Object, default: null },
+    mode: { type: String, default: 'sibling' },
+    submitting: { type: Boolean, default: false }
   },
   data() {
     return {
@@ -108,12 +96,8 @@ export default {
     },
     dialogTitle() {
       if (!this.node) return '新增节点'
-      if (this.mode === 'child') {
-        return this.level === 1 ? '新增节' : '新增段'
-      }
-      if (this.mode === 'paragraph' || this.level === 3) {
-        return '新增单段'
-      }
+      if (this.mode === 'child') return this.level === 1 ? '新增节' : '新增段'
+      if (this.mode === 'paragraph' || this.level === 3) return '新增单段'
       return this.level === 1 ? '新增章' : '新增节'
     }
   },
@@ -130,7 +114,7 @@ export default {
     },
     mockHelp() {
       const title = this.form.title || (this.node && this.node.titleText) || '新增目录'
-      this.form.requirementDesc = `围绕“${title}”补充编写方向，需说明实施目标、关键步骤、交付成果、质量控制和验收依据。`
+      this.form.requirementDesc = `围绕“${title}”说明实施目标、关键步骤、交付成果和验收依据。`
     },
     submit() {
       this.$refs.form.validate(valid => {

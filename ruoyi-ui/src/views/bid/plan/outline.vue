@@ -40,6 +40,7 @@
             预估页数：<b class="danger">{{ stats.estimatePages || 0 }}</b> 页
             <span>当前页数：<b class="success">{{ stats.currentPages || 0 }}</b> 页</span>
           </p>
+          <p class="head-note">注：数据仅供参考，实际请以具体导出结果为准</p>
         </div>
         <el-button size="small" icon="el-icon-edit" @click="toggleEdit">{{ editMode ? '退出编辑' : '编辑' }}</el-button>
       </header>
@@ -62,15 +63,23 @@
             <div class="outline-tree">
               <template v-if="tree.length">
                 <div v-for="chapter in tree" :key="chapter.id" class="preview-node level-1">
-                  <i class="el-icon-caret-bottom" />
-                  <strong>{{ chapter.title }}</strong>
-                  <div v-for="section in chapter.children || []" :key="section.id" class="preview-node level-2">
-                    <i class="el-icon-caret-bottom" />
-                    <span>{{ section.title }}</span>
-                    <div v-for="item in section.children || []" :key="item.id" class="preview-node level-3">
-                      <i class="dot" />
-                      <span>{{ item.title }}</span>
-                      <em>{{ item.wordLimit || 300 }}字</em>
+                  <div class="preview-title-row chapter-row" @click="togglePreviewCollapse(chapter.id)">
+                    <i :class="isPreviewCollapsed(chapter.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" />
+                    <strong class="preview-text ellipsis" :title="chapter.title">{{ chapter.title }}</strong>
+                  </div>
+                  <div v-show="!isPreviewCollapsed(chapter.id)">
+                    <div v-for="section in chapter.children || []" :key="section.id" class="preview-node level-2">
+                      <div class="preview-title-row section-row" @click="togglePreviewCollapse(section.id)">
+                        <i :class="isPreviewCollapsed(section.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" />
+                        <span class="preview-text ellipsis" :title="section.title">{{ section.title }}</span>
+                      </div>
+                      <div v-show="!isPreviewCollapsed(section.id)">
+                        <div v-for="item in section.children || []" :key="item.id" class="preview-node level-3">
+                          <i class="dot" />
+                          <span class="preview-text ellipsis" :title="item.title">{{ item.title }}</span>
+                          <em><b class="success">{{ item.contentWords || 0 }}</b> / {{ item.wordLimit || 300 }}</em>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -79,29 +88,36 @@
             </div>
           </div>
           <div class="preview-actions">
-            <el-button icon="el-icon-refresh" plain @click="$router.push('/bid/plan/create')">重新生成</el-button>
-            <el-button type="primary" @click="wordDialogVisible = true">设置篇幅</el-button>
-            <el-button type="primary" plain @click="startContentGenerate">开始生成</el-button>
+            <el-button plain @click="$router.push('/bid/plan/create')">重编全文</el-button>
+            <el-button type="primary" @click="startContentGenerate">开始生成</el-button>
           </div>
         </div>
-        <aside class="helper-panel">
-          <div class="helper-card">
-            <h3><i class="el-icon-message-solid" /> 消息</h3>
-            <p><b>AI标书 4.0 重磅上线！</b></p>
-            <p>上线AI质检，可针对招标文件和投标文件进行双重检查。</p>
-          </div>
-          <div class="helper-card">
-            <h3><i class="el-icon-service" /> 客服</h3>
-            <p>使用咨询、开具发票，请添加客服微信。</p>
-            <div class="qr-row">
-              <div />
-              <div />
+        <aside class="preview-hero">
+          <div class="hero-stage">
+            <div class="hero-top">
+              <h2>AI方案</h2>
+              <p>根据招标方的采购需求、服务需求、技术要求等，平台将分析重组用户自定义约束条件，智能撰写技术方案、服务方案及其他需求方案。</p>
             </div>
-          </div>
-          <div class="welfare-card">
-            <h3>福利</h3>
-            <p><b>邀请有礼：</b>每邀请一位好友注册使用，赠送 1 万字数。</p>
-            <p><b>邀请返利：</b>购买指定套餐成为合伙人后，最高返利30%。</p>
+            <div class="hero-card-grid">
+              <div class="hero-card pink">
+                <h3>快速编写模式</h3>
+                <p>用户提供详细编写需求，例如采购需求、服务要求、技术要求，以此为依据生成方案目录与内容。</p>
+                <div class="hero-icon"><i class="el-icon-document-checked" /></div>
+              </div>
+              <div class="hero-card blue">
+                <h3>快捷评分模式</h3>
+                <p>在详细编写需求基础上，添加统一评分标准，用以约束目录及内容生成方向。</p>
+                <div class="hero-icon"><i class="el-icon-edit-outline" /></div>
+              </div>
+              <div class="hero-card purple">
+                <h3>定制评分模式</h3>
+                <p>逐一添加精准的大章名称及编写需求，用以生成更准确的方案目录。</p>
+                <div class="hero-icon"><i class="el-icon-chat-dot-square" /></div>
+              </div>
+            </div>
+            <div class="hero-bottom">
+              <el-button type="primary" @click="$router.push('/bid/plan/create')">新建方案</el-button>
+            </div>
           </div>
         </aside>
       </section>
@@ -109,6 +125,9 @@
       <section v-else class="edit-layout">
         <div v-if="activeTab === 'delete'" class="bulk-toolbar">
           <el-button type="danger" plain @click="deleteChecked">删除选中项</el-button>
+        </div>
+        <div v-if="activeTab === 'word'" class="word-note">
+          注：已经生成内容的段落无法修改字数
         </div>
 
         <div v-if="activeTab === 'writing'" class="global-rule">
@@ -138,7 +157,7 @@
               <div class="node-line level-1">
                 <span v-if="activeTab === 'sort'" class="drag-handle el-icon-rank" />
                 <el-checkbox v-if="activeTab === 'delete'" :value="!!checkedMap[chapter.id]" @change="checkNode(chapter, $event)" />
-                <i class="el-icon-caret-bottom" />
+                <i :class="isCollapsed(chapter.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="toggleCollapse(chapter.id)" />
                 <node-title :node="chapter" :editing="activeTab === 'writing'" @save="saveTitle" />
                 <node-actions
                   :node="chapter"
@@ -154,13 +173,14 @@
                 v-model="chapter.children"
                 :disabled="activeTab !== 'sort'"
                 handle=".drag-handle"
+                v-show="!isCollapsed(chapter.id)"
                 @end="sortGroup(chapter.id, chapter.children)"
               >
                 <div v-for="section in chapter.children || []" :key="section.id" class="section-block">
                   <div class="node-line level-2">
                     <span v-if="activeTab === 'sort'" class="drag-handle el-icon-rank" />
                     <el-checkbox v-if="activeTab === 'delete'" :value="!!checkedMap[section.id]" @change="checkNode(section, $event)" />
-                    <i class="el-icon-caret-bottom" />
+                    <i :class="isCollapsed(section.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="toggleCollapse(section.id)" />
                     <node-title :node="section" :editing="activeTab === 'writing'" @save="saveTitle" />
                     <node-actions
                       :node="section"
@@ -176,6 +196,7 @@
                     v-model="section.children"
                     :disabled="activeTab !== 'sort'"
                     handle=".drag-handle"
+                    v-show="!isCollapsed(section.id)"
                     @end="sortGroup(section.id, section.children)"
                   >
                     <div v-for="item in section.children || []" :key="item.id" class="leaf-block">
@@ -265,6 +286,7 @@ import {
   batchUpdateNodeWordLimit,
   deleteOutlineNodes,
   finalizePlanOutline,
+  getPlanOutlineEdit,
   getPlanOutlineOverview,
   saveWritingDirection,
   saveGlobalWritingRequirement,
@@ -275,109 +297,9 @@ import {
 } from '@/api/bid/planOutline'
 import AddNodeDialog from './components/AddNodeDialog.vue'
 import AiWritingDialog from './components/AiWritingDialog.vue'
+import NodeActions from './components/EditNodeActions.vue'
+import NodeTitle from './components/EditNodeTitle.vue'
 import WordPresetDialog from './components/WordPresetDialog.vue'
-
-const NodeTitle = {
-  props: {
-    node: { type: Object, required: true },
-    editing: { type: Boolean, default: false }
-  },
-  data() {
-    return {
-      value: ''
-    }
-  },
-  watch: {
-    node: {
-      immediate: true,
-      handler(node) {
-        this.value = node.titleText || this.cleanTitle(node)
-      }
-    }
-  },
-  methods: {
-    cleanTitle(node) {
-      const title = node.title || ''
-      if (Number(node.level) === 1) return title.replace(/^第[一二三四五六七八九十百千万零〇两]+章\s*/, '')
-      if (Number(node.level) === 2) return title.replace(/^第[一二三四五六七八九十百千万零〇两]+节\s*/, '')
-      return title.replace(/^[（(][一二三四五六七八九十百千万零〇两]+[）)]\s*/, '')
-    },
-    save() {
-      this.$emit('save', this.node, this.value)
-    }
-  },
-  template: `
-    <span class="title-editor">
-      <template v-if="editing">
-        <span class="node-prefix">{{ node.titlePrefix }}</span>
-        <el-input v-model="value" size="small" @change="save" @blur="save" />
-      </template>
-      <template v-else>
-        <span>{{ node.title }}</span>
-      </template>
-    </span>
-  `
-}
-
-const NodeActions = {
-  props: {
-    node: { type: Object, required: true },
-    tab: { type: String, required: true },
-    wordOptions: { type: Array, required: true }
-  },
-  data() {
-    return {
-      batchValue: undefined
-    }
-  },
-  methods: {
-    add(command) {
-      this.$emit('add', this.node, command)
-    }
-  },
-  template: `
-    <span class="node-actions">
-      <template v-if="tab === 'word'">
-        <el-select
-          v-if="Number(node.level) === 3"
-          v-model="node.wordLimit"
-          size="mini"
-          class="word-select"
-          @change="$emit('single-word', node)"
-        >
-          <el-option v-for="item in wordOptions" :key="item" :label="item + '字'" :value="item" />
-        </el-select>
-        <el-select
-          v-else
-          v-model="batchValue"
-          size="mini"
-          class="word-select"
-          placeholder="批量修改"
-          @change="$emit('batch-word', node, batchValue)"
-        >
-          <el-option v-for="item in wordOptions" :key="item" :label="item + '字'" :value="item" />
-        </el-select>
-      </template>
-      <template v-else-if="tab === 'add'">
-        <el-dropdown trigger="click" @command="add">
-          <el-button size="mini" circle icon="el-icon-plus" />
-          <el-dropdown-menu slot="dropdown">
-            <el-dropdown-item command="sibling">{{ Number(node.level) === 3 ? '新增单段' : '新增同级' }}</el-dropdown-item>
-            <el-dropdown-item v-if="Number(node.level) < 3" command="child">新增子级</el-dropdown-item>
-          </el-dropdown-menu>
-        </el-dropdown>
-      </template>
-      <template v-else-if="tab === 'delete'">
-        <el-button size="mini" circle icon="el-icon-delete" @click="$emit('delete', node)" />
-      </template>
-      <template v-else-if="tab === 'sort'">
-        <el-tooltip content="拖拽排序" placement="top">
-          <span class="sort-tip">拖拽排序</span>
-        </el-tooltip>
-      </template>
-    </span>
-  `
-}
 
 export default {
   name: 'BidPlanOutline',
@@ -404,6 +326,8 @@ export default {
       editMode: false,
       activeTab: 'word',
       checkedMap: {},
+      collapseMap: {},
+      previewCollapseMap: {},
       wordDialogVisible: false,
       wordSubmitting: false,
       addDialogVisible: false,
@@ -434,6 +358,9 @@ export default {
       this.$router.replace({ path: '/bid/plan/outline', query: { bidId: row.id } })
       this.bidId = row.id
       this.editMode = false
+      this.activeTab = 'word'
+      this.collapseMap = {}
+      this.previewCollapseMap = {}
       this.loadOverview()
     },
     loadOverview() {
@@ -443,31 +370,42 @@ export default {
       }
       this.loading = true
       return getPlanOutlineOverview(this.bidId).then(res => {
-        const data = res.data || {}
-        this.bid = data.bid || {}
-        this.setting = data.setting || {}
-        this.stats = data.stats || {}
-        this.tree = data.tree || []
-        this.rows = data.rows || []
-        this.globalWritingRequirement = this.setting.globalWritingRequirement || ''
+        this.refreshData(res.data || {})
+      }).finally(() => {
+        this.loading = false
+      })
+    },
+    loadEdit() {
+      if (!this.bidId) return Promise.resolve()
+      this.loading = true
+      return getPlanOutlineEdit(this.bidId).then(res => {
+        this.refreshData(res.data || {})
       }).finally(() => {
         this.loading = false
       })
     },
     toggleEdit() {
-      this.editMode = !this.editMode
-      if (!this.editMode) {
+      if (this.editMode) {
+        this.editMode = false
         this.checkedMap = {}
+        this.collapseMap = {}
         this.loadOverview()
+        return
       }
+      this.loadEdit().then(() => {
+        this.editMode = true
+        this.activeTab = 'word'
+      }).catch(() => {
+        this.editMode = true
+        this.activeTab = 'word'
+      })
     },
     confirmWordPreset(data) {
       this.wordSubmitting = true
       applyPlanWordPreset(this.bidId, data).then(res => {
         this.refreshData(res.data)
         this.wordDialogVisible = false
-        this.editMode = true
-        this.activeTab = 'word'
+        this.editMode = false
         this.$modal.msgSuccess('篇幅设置完成')
       }).finally(() => {
         this.wordSubmitting = false
@@ -478,8 +416,36 @@ export default {
       this.bid = data.bid || this.bid
       this.setting = data.setting || this.setting
       this.stats = data.stats || this.stats
-      this.tree = data.tree || this.tree
+      this.tree = this.normalizeTree(data.tree || this.tree || [])
       this.rows = data.rows || this.rows
+      this.globalWritingRequirement = this.setting.globalWritingRequirement || ''
+    },
+    normalizeTree(nodes) {
+      if (!Array.isArray(nodes)) return []
+      return nodes.map(item => {
+        const node = { ...item }
+        const prefix = node.titlePrefix ? String(node.titlePrefix).trim() : ''
+        const text = node.titleText ? String(node.titleText).trim() : ''
+        if (!node.title || !String(node.title).trim().length) {
+          node.title = [prefix, text].filter(Boolean).join(' ').trim()
+        }
+        node.wordLimit = Number(node.wordLimit) > 0 ? Number(node.wordLimit) : 300
+        node.contentWords = Number(node.contentWords || 0)
+        node.children = this.normalizeTree(node.children || [])
+        return node
+      })
+    },
+    isCollapsed(nodeId) {
+      return !!this.collapseMap[nodeId]
+    },
+    toggleCollapse(nodeId) {
+      this.$set(this.collapseMap, nodeId, !this.collapseMap[nodeId])
+    },
+    isPreviewCollapsed(nodeId) {
+      return !!this.previewCollapseMap[nodeId]
+    },
+    togglePreviewCollapse(nodeId) {
+      this.$set(this.previewCollapseMap, nodeId, !this.previewCollapseMap[nodeId])
     },
     saveSingleWord(node) {
       updateNodeWordLimit(this.bidId, node.id, { wordLimit: node.wordLimit }).then(res => {
@@ -607,10 +573,12 @@ export default {
 
 <style scoped>
 .plan-outline-page {
-  min-height: calc(100vh - 84px);
+  height: calc(100vh - 84px);
+  max-height: calc(100vh - 84px);
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   background: #f5f7fb;
+  overflow: hidden;
 }
 .plan-sidebar {
   position: relative;
@@ -674,8 +642,11 @@ export default {
 }
 .outline-main {
   min-width: 0;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   background: #fff;
+  display: flex;
+  flex-direction: column;
 }
 .project-head {
   min-height: 92px;
@@ -693,6 +664,11 @@ export default {
 .project-head p {
   margin: 4px 0;
   color: #606266;
+}
+.project-head .head-note {
+  margin-top: 6px;
+  color: #9aa3b2;
+  font-size: 12px;
 }
 .project-head span {
   margin-left: 48px;
@@ -721,41 +697,53 @@ export default {
   border-bottom: 3px solid #2563ff;
 }
 .preview-layout {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(520px, 58%) minmax(340px, 42%);
-  gap: 32px;
-  padding: 22px 28px;
+  grid-template-columns: minmax(560px, 44%) minmax(620px, 56%);
+  gap: 0;
+  padding: 0;
+  height: 100%;
 }
 .outline-card {
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   border-right: 1px solid #dfe4ee;
-  padding-right: 18px;
+  padding: 0 10px 0 16px;
+  overflow: hidden;
+  background: #fff;
 }
 .preview-head {
-  height: 42px;
+  min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   color: #45576f;
   font-size: 18px;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid #e7ebf3;
+  background: #fff;
+  z-index: 2;
 }
 .preview-head small {
   color: #e6a23c;
-  font-size: 14px;
+  font-size: 13px;
 }
 .preview-body {
-  height: calc(100vh - 260px);
-  min-height: 520px;
+  min-height: 0;
   overflow: auto;
-  border: 1px solid #dfe4ee;
-  border-radius: 4px;
+  border-bottom: 1px solid #e7ebf3;
+  padding-right: 2px;
 }
 .outline-tree {
-  padding: 12px 16px 80px;
+  padding: 10px 10px 14px 6px;
 }
 .preview-node {
-  position: relative;
-  min-height: 36px;
-  line-height: 36px;
+  min-height: 34px;
+  line-height: 34px;
   color: #606266;
 }
 .preview-node.level-1 {
@@ -763,19 +751,49 @@ export default {
   color: #303133;
 }
 .preview-node.level-2 {
-  margin-left: 26px;
+  margin-left: 24px;
   font-weight: 500;
 }
 .preview-node.level-3 {
-  margin-left: 54px;
+  margin-left: 48px;
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .preview-node em {
   margin-left: auto;
   color: #909399;
   font-style: normal;
+  min-width: 74px;
+  text-align: right;
+}
+.preview-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+}
+.preview-title-row .preview-text {
+  flex: 1;
+}
+.preview-node.level-3 .preview-text {
+  flex: 1;
+}
+.preview-title-row i {
+  flex: 0 0 auto;
+  color: #606a78;
+}
+.preview-text {
+  min-width: 0;
+}
+.preview-text.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  max-width: 100%;
 }
 .dot {
   width: 6px;
@@ -790,46 +808,127 @@ export default {
   color: #a8abb2;
 }
 .preview-actions {
-  min-height: 74px;
+  min-height: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 0;
+  background: #fff;
+  border-top: 1px solid #e7ebf3;
+}
+.preview-actions .el-button {
+  width: 100%;
+  max-width: 460px;
+}
+.preview-hero {
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  background: linear-gradient(135deg, #f3f4fb 0%, #eef2ff 100%);
+  padding: 18px 26px 20px;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+}
+.hero-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  row-gap: 16px;
+}
+.hero-top {
+  text-align: center;
+}
+.hero-top h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  color: #1f2d3d;
+}
+.hero-top p {
+  margin: 0 auto;
+  max-width: 900px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #45576f;
+}
+.hero-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: center;
+  align-content: center;
+  min-height: 0;
+}
+.hero-card {
+  min-height: 0;
+  height: clamp(190px, 30vh, 260px);
+  border: 1px solid #e5e9f2;
+  border-radius: 10px;
+  padding: 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+.hero-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #1f2d3d;
+  line-height: 1.4;
+}
+.hero-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #3d4a63;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+}
+.hero-card.pink {
+  background: #fdf4f8;
+}
+.hero-card.blue {
+  background: #f1f5fd;
+}
+.hero-card.purple {
+  background: #f6f3fe;
+}
+.hero-icon {
+  width: 68px;
+  height: 68px;
+  margin: auto auto 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
+  justify-content: center;
 }
-.helper-panel {
-  display: grid;
-  align-content: start;
-  gap: 24px;
-  padding-top: 40px;
+.hero-icon i {
+  font-size: 32px;
+  color: #6a78ee;
 }
-.helper-card,
-.welfare-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 22px 26px;
-  box-shadow: 0 8px 28px rgba(31, 45, 61, .08);
+.hero-bottom {
+  text-align: center;
+  margin-top: 0;
+  padding-top: 2px;
 }
-.helper-card h3,
-.welfare-card h3 {
-  margin: 0 0 14px;
-  font-size: 20px;
-}
-.qr-row {
-  display: flex;
-  gap: 30px;
-}
-.qr-row div {
-  width: 82px;
-  height: 82px;
-  background: repeating-linear-gradient(45deg, #606a78, #606a78 8px, #fff 8px, #fff 16px);
-  border-radius: 4px;
-}
-.welfare-card {
-  border: 1px solid #ffd6d6;
-  background: #fffafa;
+.hero-bottom .el-button {
+  min-width: 146px;
+  height: 40px;
+  font-size: 14px;
 }
 .edit-layout {
   padding: 0 18px 36px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .bulk-toolbar {
   height: 72px;
@@ -837,6 +936,12 @@ export default {
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid #dfe4ee;
+}
+.word-note {
+  margin: 10px 10px 0;
+  color: #2f66ff;
+  font-size: 13px;
+  font-weight: 600;
 }
 .global-rule {
   margin: 22px 10px;
@@ -856,6 +961,9 @@ export default {
 }
 .edit-tree {
   padding: 10px 0 60px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .node-block,
 .section-block,
@@ -869,6 +977,11 @@ export default {
   gap: 10px;
   border-bottom: 1px dashed #d9dde6;
   color: #606266;
+}
+.node-line .el-icon-caret-bottom,
+.node-line .el-icon-caret-right {
+  cursor: pointer;
+  color: #5c6678;
 }
 .node-line.level-1 {
   margin-top: 8px;
@@ -911,6 +1024,12 @@ export default {
 .word-select {
   width: 118px;
 }
+.word-metric {
+  min-width: 110px;
+  text-align: right;
+  color: #909399;
+  font-size: 14px;
+}
 .sort-tip {
   color: #909399;
   font-size: 12px;
@@ -943,10 +1062,34 @@ export default {
 @media (max-width: 1280px) {
   .preview-layout {
     grid-template-columns: 1fr;
+    height: auto;
   }
   .outline-card {
     border-right: 0;
-    padding-right: 0;
+    padding-right: 10px;
+  }
+  .preview-hero {
+    min-height: auto;
+    padding: 20px 18px 16px;
+  }
+  .hero-top h2 {
+    font-size: 22px;
+  }
+  .hero-top p {
+    font-size: 14px;
+  }
+  .hero-card-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero-card {
+    height: auto;
+    min-height: 160px;
+  }
+  .hero-card h3 {
+    font-size: 16px;
+  }
+  .hero-card p {
+    font-size: 14px;
   }
 }
 </style>

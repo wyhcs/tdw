@@ -2616,47 +2616,49 @@ export default {
 .outline-title-editor {
   font-size: 14px;
 }
-.outline-editor-line {
+.outline-title-editor ::v-deep .outline-editor-line {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: baseline;
-  column-gap: 14px;
-  min-height: 30px;
+  column-gap: 12px;
+  min-height: 28px;
 }
-.outline-heading-mark {
-  color: #b4bbc8;
-  font-size: 13px;
+.outline-title-editor ::v-deep .outline-heading-mark {
+  color: #aeb6c4;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
   user-select: none;
 }
-.outline-heading-text {
+.outline-title-editor ::v-deep .outline-heading-text {
   min-width: 0;
   outline: none;
 }
-.outline-editor-h2 {
-  margin: 12px 0 8px;
+.outline-title-editor ::v-deep .outline-editor-h2 {
+  margin: 18px 0 10px;
 }
-.outline-editor-h2 .outline-heading-text {
-  font-size: 20px;
-  line-height: 1.8;
+.outline-title-editor ::v-deep .outline-editor-h2 .outline-heading-text {
+  font-size: 21px;
+  line-height: 1.55;
   font-weight: 700;
 }
-.outline-editor-h3 {
-  margin: 8px 0 5px;
+.outline-title-editor ::v-deep .outline-editor-h3 {
+  margin: 13px 0 7px;
 }
-.outline-editor-h3 .outline-heading-text {
-  font-size: 17px;
-  line-height: 1.7;
+.outline-title-editor ::v-deep .outline-editor-h3 .outline-heading-text {
+  font-size: 18px;
+  line-height: 1.5;
   font-weight: 700;
 }
-.outline-editor-h4 {
-  margin: 4px 0;
+.outline-title-editor ::v-deep .outline-editor-h4 {
+  margin: 8px 0;
 }
-.outline-editor-h4 .outline-heading-text {
-  font-size: 15px;
-  line-height: 1.65;
-  font-weight: 500;
+.outline-title-editor ::v-deep .outline-editor-h4 .outline-heading-text {
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 400;
 }
-.outline-editor-p .outline-heading-text {
+.outline-title-editor ::v-deep .outline-editor-p .outline-heading-text {
   color: #606266;
 }
 .outline-empty {

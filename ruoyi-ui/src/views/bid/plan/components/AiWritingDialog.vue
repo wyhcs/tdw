@@ -2,43 +2,35 @@
   <el-dialog
     :title="title"
     :visible.sync="innerVisible"
-    width="86vw"
+    width="860px"
     append-to-body
     class="ai-writing-dialog"
     @close="$emit('update:visible', false)"
   >
     <div class="ai-shell">
-      <div class="ai-card">
-        <div class="ai-card-head">
-          <span class="avatar">AI</span>
+      <div class="ai-output-card" v-loading="streaming">
+        <div class="ai-output-head">
           <strong>{{ currentNodeTitle }}</strong>
-          <el-button type="primary" icon="el-icon-circle-check" @click="useContent">使用该内容</el-button>
+          <el-button type="primary" plain icon="el-icon-circle-check" @click="useContent">使用该内容</el-button>
         </div>
-        <div class="ai-output" v-loading="streaming">
+        <div class="ai-output-body">
           <pre v-if="generated">{{ generated }}</pre>
-          <div v-else class="ai-empty">选择撰写方式后，点击生成按钮。</div>
+          <span v-else class="empty-text">AI生成内容将显示在这里，点击下方按钮开始生成。</span>
         </div>
       </div>
 
-      <div class="ai-input">
+      <div class="ai-input-card">
         <el-input
           v-model="manualInstruction"
           type="textarea"
           :autosize="{ minRows: 4, maxRows: 6 }"
           :placeholder="placeholder"
         />
-        <div class="ai-input-actions">
+        <div class="actions">
           <el-dropdown trigger="click" @command="selectMode">
-            <el-button plain>
-              {{ selectedModeLabel }} <i class="el-icon-arrow-up el-icon--right" />
-            </el-button>
+            <el-button plain>{{ selectedModeLabel }} <i class="el-icon-arrow-down el-icon--right" /></el-button>
             <el-dropdown-menu slot="dropdown">
-              <el-dropdown-item
-                v-for="item in modeOptions"
-                :key="item.value"
-                :command="item.value"
-                :disabled="item.disabled"
-              >
+              <el-dropdown-item v-for="item in modeOptions" :key="item.value" :command="item.value">
                 <div class="mode-item">
                   <strong>{{ item.label }}</strong>
                   <span>{{ item.desc }}</span>
@@ -46,7 +38,7 @@
               </el-dropdown-item>
             </el-dropdown-menu>
           </el-dropdown>
-          <el-button type="primary" plain icon="el-icon-magic-stick" :loading="streaming" @click="generate">
+          <el-button type="primary" icon="el-icon-magic-stick" :loading="streaming" @click="generate">
             生成{{ shortTitle }}
           </el-button>
         </div>
@@ -61,22 +53,10 @@ import { streamPost } from '@/utils/aiStream'
 export default {
   name: 'AiWritingDialog',
   props: {
-    visible: {
-      type: Boolean,
-      default: false
-    },
-    type: {
-      type: String,
-      default: 'direction'
-    },
-    bidId: {
-      type: [String, Number],
-      required: true
-    },
-    node: {
-      type: Object,
-      default: null
-    }
+    visible: { type: Boolean, default: false },
+    type: { type: String, default: 'direction' },
+    bidId: { type: [String, Number], required: true },
+    node: { type: Object, default: null }
   },
   data() {
     return {
@@ -102,7 +82,7 @@ export default {
       return this.type === 'direction' ? '编写方向' : '编写要求'
     },
     placeholder() {
-      return this.type === 'direction' ? '可手动输入编写方向，AI可自动为您生成。' : '可手动输入编写要求，AI可自动为您生成。'
+      return this.type === 'direction' ? '输入编写方向，AI可自动生成；也可直接输入后使用。' : '输入编写要求，AI可自动生成；也可直接输入后使用。'
     },
     currentNodeTitle() {
       return this.node ? this.node.title : '当前目录'
@@ -110,31 +90,31 @@ export default {
     modeOptions() {
       if (this.type === 'direction') {
         return [
-          { label: '自己写', value: 'self', desc: '手动编写指令' },
-          { label: '四字标题', value: 'four_title', desc: '标题内容四字格式化' },
-          { label: '六字标题', value: 'six_title', desc: '标题内容六字格式化' },
-          { label: '自由发挥', value: 'free', desc: '标题内容自由发挥' },
-          { label: '动宾结合', value: 'verb_object', desc: '编写方向动宾结合' }
+          { label: '自己写', value: 'self', desc: '' },
+          { label: '四字标题', value: 'four_title', desc: '请将标题下的所有内容输出为四字格式（标题：内容）' },
+          { label: '六字标题', value: 'six_title', desc: '请将标题下的所有内容输出为六字格式（标题：内容）' },
+          { label: '自由发挥', value: 'free', desc: '请将标题下的每条内容，字数不限，自由决定长度。（标题：内容）' },
+          { label: '动宾结合', value: 'verb_object', desc: '用“动词+具体交付物”描述每个工作项。' }
         ]
       }
       return [
-        { label: '自己写', value: 'self', desc: '手动编写要求' },
-        { label: '简单直观', value: 'simple', desc: '内容简单化' },
-        { label: '结构输出', value: 'structure', desc: '内容结构化' },
-        { label: '人称静止', value: 'no_pronoun', desc: '禁止特定名称' }
+        { label: '自己写', value: 'self', desc: '' },
+        { label: '简单直观', value: 'simple', desc: '使用通俗、直接词语，避免复杂句式或抽象术语。' },
+        { label: '结构输出', value: 'structure', desc: '使用数字序列组织内容，如 1、2、3。' },
+        { label: '人称静止', value: 'no_pronoun', desc: '禁止使用“你、我、他、我们”等人称代词。' }
       ]
     },
     selectedModeLabel() {
-      const item = this.modeOptions.find(item => item.value === this.mode)
-      return item ? item.label : '自己写'
+      const selected = this.modeOptions.find(item => item.value === this.mode)
+      return selected ? selected.label : '自己写'
     }
   },
   watch: {
     visible(value) {
       if (value) {
+        this.mode = 'self'
         this.generated = ''
         this.manualInstruction = ''
-        this.mode = 'self'
       }
     }
   },
@@ -172,10 +152,7 @@ export default {
         this.$modal.msgWarning('暂无可使用内容')
         return
       }
-      this.$emit('use', {
-        content,
-        mode: this.mode
-      })
+      this.$emit('use', { content, mode: this.mode })
       this.innerVisible = false
     }
   }
@@ -183,78 +160,56 @@ export default {
 </script>
 
 <style scoped>
-.ai-writing-dialog ::v-deep .el-dialog__body {
-  background: #f5f7fb;
-  padding: 20px 24px;
-}
 .ai-shell {
-  border: 1px solid #d7dde8;
-  border-radius: 6px;
-  background: #fff;
-  padding: 18px;
-}
-.ai-card {
-  min-height: 420px;
-  border: 1px solid #dfe4ee;
-  border-radius: 6px;
-  overflow: hidden;
-}
-.ai-card-head {
-  height: 72px;
-  padding: 0 18px;
-  border-bottom: 1px solid #dfe4ee;
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 14px;
 }
-.ai-card-head .el-button {
-  margin-left: auto;
+.ai-output-card,
+.ai-input-card {
+  border: 1px solid #dfe4ee;
+  border-radius: 8px;
+  background: #fff;
 }
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: inline-flex;
+.ai-output-head {
+  min-height: 52px;
+  padding: 0 14px;
+  border-bottom: 1px solid #eef1f6;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  color: #fff;
-  background: linear-gradient(135deg, #4b7bec, #8e63ff);
-  font-weight: 700;
+  justify-content: space-between;
 }
-.ai-output {
-  min-height: 330px;
-  padding: 24px;
-  font-size: 16px;
-  line-height: 1.9;
+.ai-output-body {
+  min-height: 220px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 14px;
   color: #303133;
-  white-space: pre-wrap;
+  line-height: 1.8;
 }
-.ai-output pre {
+.ai-output-body pre {
   margin: 0;
   white-space: pre-wrap;
   font-family: inherit;
 }
-.ai-empty {
+.empty-text {
   color: #a8abb2;
 }
-.ai-input {
-  margin-top: 18px;
-  border: 1px solid #dfe4ee;
-  border-radius: 6px;
-  padding: 16px;
+.ai-input-card {
+  padding: 14px;
 }
-.ai-input-actions {
-  margin-top: 14px;
+.actions {
+  margin-top: 12px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
 }
 .mode-item {
-  min-width: 180px;
-  display: flex;
-  flex-direction: column;
+  min-width: 320px;
+  display: grid;
+  gap: 4px;
 }
 .mode-item span {
-  color: #a8abb2;
+  color: #8f98a8;
   font-size: 12px;
 }
 </style>

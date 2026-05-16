@@ -7,6 +7,13 @@ export function getPlanOutlineOverview(bidId) {
   })
 }
 
+export function getPlanOutlineEdit(bidId) {
+  return request({
+    url: `/tdw/plan/${bidId}/outline/edit`,
+    method: 'get'
+  })
+}
+
 export function applyPlanWordPreset(bidId, data) {
   return request({
     url: `/tdw/plan/${bidId}/outline/word-preset`,
