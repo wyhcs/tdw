@@ -129,7 +129,7 @@
             <button :class="{ active: activeTab === 'sort' }" @click="activeTab = 'sort'">节点排序</button>
           </div>
 
-          <div class="edit-summary">
+          <div v-if="activeTab === 'word'" class="edit-summary">
             <p>
               目标字数：<b class="danger">{{ stats.targetWords || 0 }}</b> 字
               <span>生成字数：<b class="success">{{ stats.generatedWords || 0 }}</b> 字</span>
@@ -171,7 +171,6 @@
           >
             <div v-for="chapter in tree" :key="chapter.id" class="node-block">
               <div class="node-line level-1">
-                <span v-if="activeTab === 'sort'" class="drag-handle el-icon-rank" />
                 <el-checkbox v-if="activeTab === 'delete'" :value="!!checkedMap[chapter.id]" @change="checkNode(chapter, $event)" />
                 <i :class="isCollapsed(chapter.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="toggleCollapse(chapter.id)" />
                 <node-title :node="chapter" :editing="activeTab === 'writing'" @save="saveTitle" />
@@ -194,7 +193,6 @@
               >
                 <div v-for="section in chapter.children || []" :key="section.id" class="section-block">
                   <div class="node-line level-2">
-                    <span v-if="activeTab === 'sort'" class="drag-handle el-icon-rank" />
                     <el-checkbox v-if="activeTab === 'delete'" :value="!!checkedMap[section.id]" @change="checkNode(section, $event)" />
                     <i :class="isCollapsed(section.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="toggleCollapse(section.id)" />
                     <node-title :node="section" :editing="activeTab === 'writing'" @save="saveTitle" />
@@ -217,7 +215,6 @@
                   >
                     <div v-for="item in section.children || []" :key="item.id" class="leaf-block">
                       <div class="node-line level-3">
-                        <span v-if="activeTab === 'sort'" class="drag-handle el-icon-rank" />
                         <el-checkbox v-if="activeTab === 'delete'" :value="!!checkedMap[item.id]" @change="checkNode(item, $event)" />
                         <i class="dot" />
                         <node-title :node="item" :editing="activeTab === 'writing'" @save="saveTitle" />
@@ -241,8 +238,8 @@
                             maxlength="10000"
                             show-word-limit
                             placeholder="请输入编写方向"
+                            @change="saveDirection(item)"
                           />
-                          <el-button size="mini" @click="saveDirection(item)">保存</el-button>
                         </div>
                         <div class="writing-row">
                           <label>编写要求：</label>
@@ -254,8 +251,8 @@
                             maxlength="10000"
                             show-word-limit
                             placeholder="请输入编写要求"
+                            @change="saveRequirement(item)"
                           />
-                          <el-button size="mini" @click="saveRequirement(item)">保存</el-button>
                         </div>
                       </div>
                     </div>
@@ -736,7 +733,7 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.5;
 }
 .project-head span {
@@ -757,7 +754,7 @@ export default {
 .edit-tabs button {
   border: 0;
   background: #fff;
-  font-size: 16px;
+  font-size: 14px;
   color: #606266;
   cursor: pointer;
 }
@@ -769,7 +766,7 @@ export default {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(560px, 44%) minmax(620px, 56%);
+  grid-template-columns: minmax(400px, 26%) minmax(0, 1fr);
   gap: 0;
   padding: 0;
   height: 100%;
@@ -820,13 +817,18 @@ export default {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   border-right: 1px solid #dfe4ee;
-  padding: 0 10px 0 16px;
+  padding: 0 8px 0 10px;
   overflow: hidden;
   background: #fff;
 }
 .outline-top-fixed {
   background: #fff;
   border-bottom: 1px solid #e7ebf3;
+}
+.preview-layout .outline-top-fixed {
+  width: 100%;
+  max-width: 450px;
+  margin: 0 auto;
 }
 .preview-body {
   min-height: 0;
@@ -835,11 +837,14 @@ export default {
   padding-right: 2px;
 }
 .outline-tree {
-  padding: 10px 10px 14px 6px;
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 8px 4px 12px;
 }
 .preview-node {
-  min-height: 34px;
-  line-height: 34px;
+  min-height: 28px;
+  line-height: 28px;
   color: #606266;
 }
 .preview-node.level-1 {
@@ -847,14 +852,14 @@ export default {
   color: #303133;
 }
 .preview-node.level-2 {
-  margin-left: 24px;
+  margin-left: 20px;
   font-weight: 500;
 }
 .preview-node.level-3 {
-  margin-left: 48px;
+  margin-left: 40px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 .preview-node em {
@@ -916,7 +921,7 @@ export default {
 }
 .preview-actions .el-button {
   width: 100%;
-  max-width: 460px;
+  max-width: 400px;
 }
 .preview-hero {
   min-width: 0;
@@ -928,6 +933,35 @@ export default {
   align-items: stretch;
   overflow: hidden;
 }
+.preview-hero:not(.edit-hero) {
+  padding: 46px 26px 42px;
+}
+.preview-hero:not(.edit-hero) .hero-stage {
+  grid-template-rows: auto auto auto;
+  row-gap: 38px;
+  align-content: space-between;
+}
+.preview-hero:not(.edit-hero) .hero-card-grid {
+  height: auto;
+  align-items: stretch;
+}
+.preview-hero:not(.edit-hero) .hero-card {
+  height: auto;
+  min-height: 250px;
+}
+.preview-hero:not(.edit-hero) .hero-icon {
+  width: 56px;
+  height: 56px;
+  margin-top: 24px;
+}
+.preview-hero:not(.edit-hero) .hero-icon i {
+  font-size: 26px;
+}
+.edit-hero {
+  padding: 100px 24px 82px;
+  align-items: flex-start;
+  overflow: auto;
+}
 .hero-stage {
   flex: 1;
   min-width: 0;
@@ -936,18 +970,26 @@ export default {
   grid-template-rows: auto minmax(0, 1fr) auto;
   row-gap: 18px;
 }
+.edit-hero .hero-stage {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  grid-template-rows: auto auto auto;
+  row-gap: 100px;
+  align-content: start;
+}
 .hero-top {
   text-align: center;
 }
 .hero-top h2 {
-  margin: 0 0 10px;
-  font-size: 28px;
+  margin: 8% 0 10px;
+  font-size: 32px;
   color: #1f2d3d;
 }
 .hero-top p {
-  margin: 0 auto;
+  margin: 2% auto;
   max-width: 980px;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.75;
   color: #45576f;
 }
@@ -965,6 +1007,11 @@ export default {
   min-height: 0;
   height: 100%;
 }
+.edit-hero .hero-card-grid {
+  height: auto;
+  gap: 14px;
+  align-items: start;
+}
 .hero-card {
   min-height: 0;
   height: 100%;
@@ -977,21 +1024,32 @@ export default {
   justify-content: space-between;
   overflow: hidden;
 }
+.edit-hero .hero-card {
+  height: auto;
+  min-height: 230px;
+  padding: 20px 16px 18px;
+  justify-content: flex-start;
+}
 .hero-card h3 {
   margin: 0 0 10px;
-  font-size: 19px;
+  font-size: 20px;
   color: #1f2d3d;
   line-height: 1.4;
 }
 .hero-card p {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.78;
   color: #3d4a63;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 8;
+}
+.edit-hero .hero-card p {
+  font-size: 16px;
+  line-height: 1.72;
+  -webkit-line-clamp: 5;
 }
 .hero-card.pink {
   background: #fdf4f8;
@@ -1012,9 +1070,17 @@ export default {
   align-items: center;
   justify-content: center;
 }
+.edit-hero .hero-icon {
+  width: 58px;
+  height: 58px;
+  margin: 30px auto 0;
+}
 .hero-icon i {
   font-size: 36px;
   color: #6a78ee;
+}
+.edit-hero .hero-icon i {
+  font-size: 28px;
 }
 .hero-bottom {
   text-align: center;
@@ -1048,23 +1114,25 @@ export default {
   font-weight: 600;
 }
 .global-rule {
-  margin: 22px 10px;
+  margin: 14px 10px 10px;
   background: #f6f6f7;
   border-radius: 8px;
-  padding: 18px;
+  padding: 14px 16px;
 }
 .rule-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: #303133;
+  font-size: 14px;
+  line-height: 1.35;
 }
 .rule-title .el-button {
   margin-left: auto;
 }
 .edit-tree {
-  padding: 10px 0 60px;
+  padding: 8px 0 42px;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -1075,12 +1143,14 @@ export default {
   min-width: 0;
 }
 .node-line {
-  min-height: 48px;
+  min-height: 34px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   border-bottom: 1px dashed #d9dde6;
-  color: #606266;
+  color: #303133;
+  font-size: 14px;
+  line-height: 1.35;
 }
 .node-line .el-icon-caret-bottom,
 .node-line .el-icon-caret-right {
@@ -1088,7 +1158,7 @@ export default {
   color: #5c6678;
 }
 .node-line.level-1 {
-  margin-top: 8px;
+  margin-top: 6px;
   background: #f7f8fb;
   color: #303133;
   font-weight: 700;
@@ -1098,10 +1168,6 @@ export default {
 }
 .node-line.level-3 {
   margin-left: 52px;
-}
-.drag-handle {
-  cursor: move;
-  color: #9aa3b2;
 }
 .title-editor {
   flex: 1;
@@ -1134,25 +1200,32 @@ export default {
   color: #909399;
   font-size: 14px;
 }
-.sort-tip {
-  color: #909399;
-  font-size: 12px;
-}
 .writing-box {
-  margin-left: 82px;
-  margin-bottom: 14px;
+  margin-left: 74px;
+  margin-bottom: 10px;
   background: #f7f8fb;
   border-radius: 8px;
-  padding: 14px 16px;
+  padding: 10px 14px;
 }
 .writing-row {
   position: relative;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .writing-row label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: #303133;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.edit-layout ::v-deep .el-input__inner,
+.edit-layout ::v-deep .el-textarea__inner {
+  font-size: 14px;
+  color: #303133;
+}
+.edit-layout ::v-deep .el-textarea__inner {
+  line-height: 1.45;
 }
 .writing-row .el-button {
   position: absolute;
@@ -1196,7 +1269,7 @@ export default {
     min-height: 160px;
   }
   .hero-card h3 {
-    font-size: 16px;
+    font-size: 14px;
   }
   .hero-card p {
     font-size: 14px;

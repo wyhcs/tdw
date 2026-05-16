@@ -47,9 +47,7 @@
     </template>
 
     <template v-else-if="tab === 'sort'">
-      <el-tooltip content="拖拽排序" placement="top">
-        <span class="sort-tip">拖拽排序</span>
-      </el-tooltip>
+      <span class="drag-handle sort-handle el-icon-rank" />
     </template>
   </span>
 </template>
@@ -105,12 +103,23 @@ export default {
   color: #909399;
   font-size: 14px;
 }
-.sort-tip {
-  color: #909399;
-  font-size: 12px;
+.sort-handle {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a0a8b8;
+  cursor: move;
+  transition: background-color .18s, color .18s, box-shadow .18s;
+}
+.sort-handle:hover {
+  color: #2563ff;
+  background: #eef4ff;
+  box-shadow: inset 0 0 0 1px #b7c8ff;
 }
 .success {
   color: #2fbd55;
 }
 </style>
-

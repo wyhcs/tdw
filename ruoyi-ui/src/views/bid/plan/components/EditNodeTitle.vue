@@ -2,7 +2,8 @@
   <span class="title-editor">
     <template v-if="editing">
       <span class="node-prefix">{{ node.titlePrefix }}</span>
-      <el-input v-model="value" size="small" @change="save" @blur="save" />
+      <el-input v-model="value" size="small" @keyup.enter.native="save" />
+      <el-button class="title-save" size="mini" @click.stop="save">保存</el-button>
     </template>
     <template v-else>
       <span class="title-text" :title="displayTitle(node)">{{ displayTitle(node) }}</span>
@@ -59,15 +60,31 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: #303133;
+  font-size: 14px;
+  line-height: 1.35;
 }
 .title-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #303133;
 }
 .node-prefix {
   flex: 0 0 auto;
-  color: #606266;
+  color: #303133;
+}
+.title-editor ::v-deep .el-input {
+  flex: 1;
+  min-width: 0;
+}
+.title-editor ::v-deep .el-input__inner {
+  height: 32px;
+  line-height: 32px;
+  color: #303133;
+  font-size: 14px;
+}
+.title-save {
+  flex: 0 0 auto;
 }
 </style>
-
