@@ -2,8 +2,8 @@
   <span class="title-editor">
     <template v-if="editing">
       <span class="node-prefix">{{ node.titlePrefix }}</span>
-      <el-input v-model="value" size="small" @keyup.enter.native="save" />
-      <el-button class="title-save" size="mini" @click.stop="save">保存</el-button>
+      <el-input v-model="value" size="small" @input="emitChange" @keyup.enter.native="save" />
+      <el-button class="title-save" size="mini" :disabled="!canSave" @click.stop="save">保存</el-button>
     </template>
     <template v-else>
       <span class="title-text" :title="displayTitle(node)">{{ displayTitle(node) }}</span>
@@ -16,11 +16,21 @@ export default {
   name: 'EditNodeTitle',
   props: {
     node: { type: Object, required: true },
-    editing: { type: Boolean, default: false }
+    editing: { type: Boolean, default: false },
+    externalDirty: { type: Boolean, default: false }
   },
   data() {
     return {
-      value: ''
+      value: '',
+      originalValue: ''
+    }
+  },
+  computed: {
+    titleDirty() {
+      return this.normalize(this.value) !== this.normalize(this.originalValue)
+    },
+    canSave() {
+      return this.titleDirty || this.externalDirty
     }
   },
   watch: {
@@ -28,10 +38,14 @@ export default {
       immediate: true,
       handler(node) {
         this.value = node.titleText || this.cleanTitle(node)
+        this.originalValue = this.value
       }
     }
   },
   methods: {
+    normalize(value) {
+      return value == null ? '' : String(value).trim()
+    },
     displayTitle(node) {
       if (!node) return ''
       const title = node.title == null ? '' : String(node.title).trim()
@@ -46,8 +60,12 @@ export default {
       if (Number(node.level) === 2) return title.replace(/^第[一二三四五六七八九十百千万零〇两]+节\s*/, '')
       return title.replace(/^[（(][一二三四五六七八九十百千万零〇两]+[）)]\s*/, '')
     },
+    emitChange() {
+      this.$emit('title-change', this.node, this.value, this.titleDirty)
+    },
     save() {
-      this.$emit('save', this.node, this.value)
+      if (!this.canSave) return
+      this.$emit('save', this.node, this.value, this.titleDirty)
     }
   }
 }

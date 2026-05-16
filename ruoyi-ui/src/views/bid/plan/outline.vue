@@ -37,11 +37,11 @@
                 <h1>{{ bid.title || 'AI方案' }}</h1>
                 <p>
                   指导字数：<b class="danger">{{ stats.targetWords || 0 }}</b> 字
-                  <span>生成字数：<b class="success">{{ stats.generatedWords || 0 }}</b> 字</span>
+                  <span>生成字数：<b class="success">{{ generatedWordsCount }}</b> 字</span>
                 </p>
                 <p>
                   预估页数：<b class="danger">{{ stats.estimatePages || 0 }}</b> 页
-                  <span>当前页数：<b class="success">{{ stats.currentPages || 0 }}</b> 页</span>
+                  <span>当前页数：<b class="success">{{ currentPageCount }}</b> 页</span>
                 </p>
                 <p class="head-note">注：数据仅供参考，实际请以具体导出结果为准</p>
               </div>
@@ -52,21 +52,38 @@
             <div class="outline-tree">
               <template v-if="tree.length">
                 <div v-for="chapter in tree" :key="chapter.id" class="preview-node level-1">
-                  <div class="preview-title-row chapter-row" @click="togglePreviewCollapse(chapter.id)">
-                    <i :class="isPreviewCollapsed(chapter.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" />
-                    <strong class="preview-text ellipsis" :title="chapter.title">{{ chapter.title }}</strong>
+                  <div class="preview-title-row chapter-row">
+                    <i :class="isPreviewCollapsed(chapter.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="togglePreviewCollapse(chapter.id)" />
+                    <strong
+                      class="preview-text ellipsis"
+                      :class="{ clickable: isNodeGenerated(chapter), disabled: !isNodeGenerated(chapter), active: isSelectedContentNode(chapter) }"
+                      :title="chapter.title"
+                      @click.stop="selectGeneratedNode(chapter)"
+                    >{{ chapter.title }}</strong>
+                    <em><b class="success">{{ nodeGeneratedWords(chapter) }}</b> / {{ nodeTargetWords(chapter) }}</em>
                   </div>
                   <div v-show="!isPreviewCollapsed(chapter.id)">
                     <div v-for="section in chapter.children || []" :key="section.id" class="preview-node level-2">
-                      <div class="preview-title-row section-row" @click="togglePreviewCollapse(section.id)">
-                        <i :class="isPreviewCollapsed(section.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" />
-                        <span class="preview-text ellipsis" :title="section.title">{{ section.title }}</span>
+                      <div class="preview-title-row section-row">
+                        <i :class="isPreviewCollapsed(section.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="togglePreviewCollapse(section.id)" />
+                        <span
+                          class="preview-text ellipsis"
+                          :class="{ clickable: isNodeGenerated(section), disabled: !isNodeGenerated(section), active: isSelectedContentNode(section) }"
+                          :title="section.title"
+                          @click.stop="selectGeneratedNode(section)"
+                        >{{ section.title }}</span>
+                        <em><b class="success">{{ nodeGeneratedWords(section) }}</b> / {{ nodeTargetWords(section) }}</em>
                       </div>
                       <div v-show="!isPreviewCollapsed(section.id)">
                         <div v-for="item in section.children || []" :key="item.id" class="preview-node level-3">
                           <i class="dot" />
-                          <span class="preview-text ellipsis" :title="item.title">{{ item.title }}</span>
-                          <em><b class="success">{{ item.contentWords || 0 }}</b> / {{ item.wordLimit || 300 }}</em>
+                          <span
+                            class="preview-text ellipsis"
+                            :class="{ clickable: isNodeGenerated(item), disabled: !isNodeGenerated(item), active: isSelectedContentNode(item) }"
+                            :title="item.title"
+                            @click.stop="selectGeneratedNode(item)"
+                          >{{ item.title }}</span>
+                          <em><b class="success">{{ nodeGeneratedWords(item) }}</b> / {{ nodeTargetWords(item) }}</em>
                         </div>
                       </div>
                     </div>
@@ -77,11 +94,14 @@
             </div>
           </div>
           <div class="preview-actions">
-            <el-button plain @click="$router.push('/bid/plan/create')">重编全文</el-button>
-            <el-button type="primary" @click="startContentGenerate">开始生成</el-button>
+            <el-button v-if="generatingContent" class="generating-button" type="primary" :loading="true" disabled>生成中...</el-button>
+            <template v-else>
+              <el-button plain @click="$router.push('/bid/plan/create')">重编全文</el-button>
+              <el-button type="primary" @click="startContentGenerate">开始生成</el-button>
+            </template>
           </div>
         </div>
-        <aside class="preview-hero">
+        <aside v-if="!selectedContentNode" class="preview-hero">
           <div class="hero-stage">
             <div class="hero-top">
               <h2>AI方案</h2>
@@ -110,6 +130,30 @@
             </div>
           </div>
         </aside>
+        <aside v-else class="content-pane" v-loading="contentLoading">
+          <header class="content-pane-head">
+            <div>
+              <span class="content-level">{{ levelText(selectedContentNode.level) }}</span>
+              <h2>{{ selectedContentNode.title }}</h2>
+              <p><b class="success">{{ nodeGeneratedWords(selectedContentNode) }}</b> / {{ nodeTargetWords(selectedContentNode) }} 字</p>
+            </div>
+            <el-button size="mini" icon="el-icon-close" @click="closeContentPane">关闭</el-button>
+          </header>
+          <div class="content-editor-shell">
+            <div class="rich-editor-toolbar">
+              <span>正文内容</span>
+              <el-button size="mini" type="primary" :disabled="!canSaveSelectedContent" :loading="contentSaving" @click="saveSelectedContent">保存</el-button>
+            </div>
+            <div
+              ref="richEditor"
+              class="rich-editor"
+              :class="{ readonly: !canSaveSelectedContent }"
+              :contenteditable="canSaveSelectedContent"
+              @input="handleEditorInput"
+            ></div>
+          </div>
+          <p v-if="!canSaveSelectedContent" class="content-note">章级和节级标题展示已生成段落汇总，段级标题可直接保存正文。</p>
+        </aside>
       </section>
 
       <section v-else class="edit-shell">
@@ -132,11 +176,11 @@
           <div v-if="activeTab === 'word'" class="edit-summary">
             <p>
               目标字数：<b class="danger">{{ stats.targetWords || 0 }}</b> 字
-              <span>生成字数：<b class="success">{{ stats.generatedWords || 0 }}</b> 字</span>
+              <span>生成字数：<b class="success">{{ generatedWordsCount }}</b> 字</span>
             </p>
             <p>
               预估页数：<b class="danger">{{ stats.estimatePages || 0 }}</b> 页
-              <span>当前页数：<b class="success">{{ stats.currentPages || 0 }}</b> 页</span>
+              <span>当前页数：<b class="success">{{ currentPageCount }}</b> 页</span>
             </p>
             <p class="head-note">注：已经生成内容的段落无法修改字数</p>
           </div>
@@ -173,7 +217,7 @@
               <div class="node-line level-1">
                 <el-checkbox v-if="activeTab === 'delete'" :value="!!checkedMap[chapter.id]" @change="checkNode(chapter, $event)" />
                 <i :class="isCollapsed(chapter.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="toggleCollapse(chapter.id)" />
-                <node-title :node="chapter" :editing="activeTab === 'writing'" @save="saveTitle" />
+                <node-title :node="chapter" :editing="activeTab === 'writing'" @save="saveWritingNode" />
                 <node-actions
                   :node="chapter"
                   :tab="activeTab"
@@ -195,7 +239,7 @@
                   <div class="node-line level-2">
                     <el-checkbox v-if="activeTab === 'delete'" :value="!!checkedMap[section.id]" @change="checkNode(section, $event)" />
                     <i :class="isCollapsed(section.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="toggleCollapse(section.id)" />
-                    <node-title :node="section" :editing="activeTab === 'writing'" @save="saveTitle" />
+                    <node-title :node="section" :editing="activeTab === 'writing'" @save="saveWritingNode" />
                     <node-actions
                       :node="section"
                       :tab="activeTab"
@@ -217,7 +261,12 @@
                       <div class="node-line level-3">
                         <el-checkbox v-if="activeTab === 'delete'" :value="!!checkedMap[item.id]" @change="checkNode(item, $event)" />
                         <i class="dot" />
-                        <node-title :node="item" :editing="activeTab === 'writing'" @save="saveTitle" />
+                        <node-title
+                          :node="item"
+                          :editing="activeTab === 'writing'"
+                          :external-dirty="isWritingDirty(item)"
+                          @save="saveWritingNode"
+                        />
                         <node-actions
                           :node="item"
                           :tab="activeTab"
@@ -238,7 +287,6 @@
                             maxlength="10000"
                             show-word-limit
                             placeholder="请输入编写方向"
-                            @change="saveDirection(item)"
                           />
                         </div>
                         <div class="writing-row">
@@ -251,7 +299,6 @@
                             maxlength="10000"
                             show-word-limit
                             placeholder="请输入编写要求"
-                            @change="saveRequirement(item)"
                           />
                         </div>
                       </div>
@@ -315,12 +362,75 @@
       :node="activeNode"
       @use="useAiContent"
     />
+    <el-dialog
+      title="方案设置"
+      :visible.sync="generateDialogVisible"
+      width="560px"
+      append-to-body
+      custom-class="generate-setting-dialog"
+      :close-on-click-modal="false"
+    >
+      <div class="generate-setting-form">
+        <div class="setting-row">
+          <label>图表数量：</label>
+          <el-radio-group v-model="generateSettings.chartCount" size="small">
+            <el-radio-button label="normal">一般</el-radio-button>
+            <el-radio-button label="less">较少</el-radio-button>
+            <el-radio-button label="more">较多</el-radio-button>
+            <el-radio-button label="none">无</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div class="setting-row">
+          <label>表格数量：</label>
+          <el-radio-group v-model="generateSettings.tableCount" size="small">
+            <el-radio-button label="normal">一般</el-radio-button>
+            <el-radio-button label="less">较少</el-radio-button>
+            <el-radio-button label="more">较多</el-radio-button>
+            <el-radio-button label="none">无</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div class="setting-row">
+          <label>知识库：</label>
+          <div class="setting-actions">
+            <el-button size="mini" :class="{ active: generateSettings.knowledgeMode === 'upload' }" @click="setGenerateKnowledgeMode('upload')">上传</el-button>
+            <el-button size="mini" :class="{ active: generateSettings.knowledgeMode === 'library' }" @click="setGenerateKnowledgeMode('library')">从知识库选择</el-button>
+          </div>
+        </div>
+        <div class="setting-row compact">
+          <label>暗标：</label>
+          <el-switch v-model="generateSettings.anonymous" />
+        </div>
+        <div class="setting-row with-note">
+          <label>自动配图：</label>
+          <el-radio-group v-model="generateSettings.autoImage" size="small">
+            <el-radio-button label="normal">一般</el-radio-button>
+            <el-radio-button label="less">较少</el-radio-button>
+            <el-radio-button label="none">无</el-radio-button>
+          </el-radio-group>
+          <span class="setting-note">PNG等图片参考</span>
+        </div>
+        <div class="setting-row writing-style">
+          <label>写作风格：</label>
+          <el-radio-group v-model="generateSettings.writingStyle" class="style-grid">
+            <el-radio label="general" border>通用型</el-radio>
+            <el-radio label="data" border>数据型</el-radio>
+            <el-radio label="concise" border>简练型</el-radio>
+            <el-radio label="practical" border>实用型</el-radio>
+          </el-radio-group>
+        </div>
+      </div>
+      <div slot="footer" class="generate-dialog-footer">
+        <el-button size="small" @click="generateDialogVisible = false">取消</el-button>
+        <el-button size="small" type="primary" :loading="generatingContent" @click="confirmContentGenerate">开始生成</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import draggable from 'vuedraggable'
 import { listBids } from '@/api/bid/bids'
+import { generateContentBlocks, listContentsByOutlines, updateContent } from '@/api/bid/contents'
 import {
   addOutlineChild,
   addOutlineParagraph,
@@ -380,13 +490,52 @@ export default {
       aiDialogVisible: false,
       aiType: 'direction',
       globalWritingRequirement: '',
+      generateDialogVisible: false,
+      generatingContent: false,
+      generateSettings: {
+        chartCount: 'none',
+        tableCount: 'none',
+        knowledgeMode: '',
+        anonymous: false,
+        autoImage: 'none',
+        writingStyle: 'general'
+      },
+      contentMap: {},
+      selectedContentNode: null,
+      contentEditorText: '',
+      contentLoading: false,
+      contentSaving: false,
       wordOptions: [300, 600, 900, 1200, 1800, 2700, 3600, 4500, 5400, 6300, 7200, 8100, 9000, 9900]
+    }
+  },
+  computed: {
+    generatedWordsCount() {
+      const leaves = this.flattenLeaves(this.tree)
+      const count = leaves.reduce((total, leaf) => total + this.nodeGeneratedWords(leaf), 0)
+      return count || Number(this.stats.generatedWords || 0)
+    },
+    currentPageCount() {
+      if (this.generatedWordsCount > 0) {
+        return Math.max(1, Math.ceil(this.generatedWordsCount / 560))
+      }
+      return Number(this.stats.currentPages || 0)
+    },
+    selectedContentBlock() {
+      if (!this.selectedContentNode || Number(this.selectedContentNode.level) !== 3) return null
+      const blocks = this.contentMap[this.selectedContentNode.id] || []
+      return blocks.find(block => Number(block.contentType) === 1) || null
+    },
+    canSaveSelectedContent() {
+      return !!this.selectedContentBlock && !this.contentLoading
     }
   },
   created() {
     this.bidId = this.$route.query.bidId
     this.loadPlans()
-    this.loadOverview()
+    const overview = this.loadOverview()
+    if (overview && overview.then) {
+      overview.then(() => this.loadAllGeneratedContents(true))
+    }
   },
   methods: {
     loadPlans() {
@@ -404,7 +553,10 @@ export default {
       this.activeTab = 'word'
       this.collapseMap = {}
       this.previewCollapseMap = {}
-      this.loadOverview()
+      this.contentMap = {}
+      this.selectedContentNode = null
+      this.contentEditorText = ''
+      this.loadOverview().then(() => this.loadAllGeneratedContents(true))
     },
     loadOverview() {
       if (!this.bidId) {
@@ -432,7 +584,7 @@ export default {
         this.editMode = false
         this.checkedMap = {}
         this.collapseMap = {}
-        this.loadOverview()
+        this.loadOverview().then(() => this.loadAllGeneratedContents(true))
         return
       }
       this.loadEdit().then(() => {
@@ -462,6 +614,10 @@ export default {
       this.tree = this.normalizeTree(data.tree || this.tree || [])
       this.rows = data.rows || this.rows
       this.globalWritingRequirement = this.setting.globalWritingRequirement || ''
+      if (this.selectedContentNode) {
+        const freshNode = this.findTreeNode(this.tree, this.selectedContentNode.id)
+        this.selectedContentNode = freshNode || null
+      }
     },
     normalizeTree(nodes) {
       if (!Array.isArray(nodes)) return []
@@ -474,6 +630,8 @@ export default {
         }
         node.wordLimit = Number(node.wordLimit) > 0 ? Number(node.wordLimit) : 300
         node.contentWords = Number(node.contentWords || 0)
+        node._originWritingDirection = node.writingDirection || ''
+        node._originWritingRequirement = node.writingRequirement || ''
         node.children = this.normalizeTree(node.children || [])
         return node
       })
@@ -503,14 +661,64 @@ export default {
         this.$modal.msgSuccess('批量字数已保存')
       })
     },
-    saveTitle(node, title) {
-      if (!title || title.trim() === (node.titleText || '').trim()) return
-      updatePlanOutlineTitle(this.bidId, node.id, { title }).then(res => {
-        this.refreshData(res.data)
+    normalizeText(value) {
+      return value == null ? '' : String(value).trim()
+    },
+    isWritingDirectionDirty(node) {
+      return this.normalizeText(node && node.writingDirection) !== this.normalizeText(node && node._originWritingDirection)
+    },
+    isWritingRequirementDirty(node) {
+      return this.normalizeText(node && node.writingRequirement) !== this.normalizeText(node && node._originWritingRequirement)
+    },
+    isWritingDirty(node) {
+      return Number(node && node.level) === 3 && (this.isWritingDirectionDirty(node) || this.isWritingRequirementDirty(node))
+    },
+    findTreeNode(nodes, nodeId) {
+      for (const node of nodes || []) {
+        if (String(node.id) === String(nodeId)) return node
+        const child = this.findTreeNode(node.children || [], nodeId)
+        if (child) return child
+      }
+      return null
+    },
+    saveWritingNode(node, title, titleDirty) {
+      const cleanTitle = this.normalizeText(title)
+      const titleChanged = !!titleDirty && !!cleanTitle
+      const directionChanged = this.isWritingDirectionDirty(node)
+      const requirementChanged = this.isWritingRequirementDirty(node)
+      const tasks = []
+      if (titleChanged) {
+        tasks.push(() => updatePlanOutlineTitle(this.bidId, node.id, { title: cleanTitle }))
+      }
+      if (Number(node.level) === 3 && directionChanged) {
+        tasks.push(() => saveWritingDirection(this.bidId, node.id, {
+          content: node.writingDirection || '',
+          mode: node.directionMode || ''
+        }))
+      }
+      if (Number(node.level) === 3 && requirementChanged) {
+        tasks.push(() => saveWritingRequirement(this.bidId, node.id, {
+          content: node.writingRequirement || '',
+          mode: node.requirementMode || ''
+        }))
+      }
+      if (!tasks.length) return
+      tasks.reduce((chain, task) => {
+        return chain.then(() => task())
+      }, Promise.resolve()).then(res => {
+        if (res && res.data) {
+          this.refreshData(res.data)
+        }
+        this.$modal.msgSuccess('保存成功')
+        if (Number(node.level) === 3 && titleChanged) {
+          this.$modal.confirm('是否重新生成本段编写方向？').then(() => {
+            this.openAi('direction', this.findTreeNode(this.tree, node.id) || node)
+          }).catch(() => {})
+        }
       })
     },
     saveDirection(node) {
-      saveWritingDirection(this.bidId, node.id, {
+      return saveWritingDirection(this.bidId, node.id, {
         content: node.writingDirection || '',
         mode: node.directionMode || ''
       }).then(res => {
@@ -519,7 +727,7 @@ export default {
       })
     },
     saveRequirement(node) {
-      saveWritingRequirement(this.bidId, node.id, {
+      return saveWritingRequirement(this.bidId, node.id, {
         content: node.writingRequirement || '',
         mode: node.requirementMode || ''
       }).then(res => {
@@ -606,9 +814,206 @@ export default {
       })
     },
     startContentGenerate() {
+      this.generateDialogVisible = true
+    },
+    setGenerateKnowledgeMode(mode) {
+      this.generateSettings.knowledgeMode = this.generateSettings.knowledgeMode === mode ? '' : mode
+    },
+    confirmContentGenerate() {
+      if (!this.bidId || this.generatingContent) return
+      this.generateDialogVisible = false
+      this.generatingContent = true
       finalizePlanOutline(this.bidId).then(() => {
-        this.$router.push({ path: '/bid/plan/editor', query: { bidId: this.bidId } })
+        return generateContentBlocks({
+          bidId: this.bidId,
+          scope: 'full',
+          mode: 'overwrite',
+          requirement: this.buildGenerateRequirement(),
+          includeTable: this.generateSettings.tableCount !== 'none',
+          includeDiagram: this.generateSettings.chartCount !== 'none' || this.generateSettings.autoImage !== 'none',
+          knowledgeFileIds: [],
+          knowledgeChunkIds: []
+        })
+      }).then(() => {
+        return this.loadOverview()
+      }).then(() => {
+        return this.loadAllGeneratedContents(true)
+      }).then(() => {
+        if (this.selectedContentNode) {
+          const freshNode = this.findTreeNode(this.tree, this.selectedContentNode.id)
+          if (freshNode && this.isNodeGenerated(freshNode)) {
+            this.selectedContentNode = freshNode
+            this.contentEditorText = this.buildNodeContentText(freshNode)
+            this.setRichEditorText()
+          }
+        }
+        this.$modal.msgSuccess('正文生成完成')
+      }).finally(() => {
+        this.generatingContent = false
       })
+    },
+    buildGenerateRequirement() {
+      const quantityMap = { normal: '一般', less: '较少', more: '较多', none: '无' }
+      const styleMap = { general: '通用型', data: '数据型', concise: '简练型', practical: '实用型' }
+      return [
+        '请按当前章、节、段目录生成全文正文内容，保持服务方案专业表达。',
+        '图表数量：' + quantityMap[this.generateSettings.chartCount],
+        '表格数量：' + quantityMap[this.generateSettings.tableCount],
+        '自动配图：' + quantityMap[this.generateSettings.autoImage],
+        '写作风格：' + styleMap[this.generateSettings.writingStyle],
+        '暗标要求：' + (this.generateSettings.anonymous ? '启用，避免出现投标人敏感身份信息。' : '不启用。')
+      ].join('\n')
+    },
+    loadAllGeneratedContents(force) {
+      const leaves = this.flattenLeaves(this.tree)
+      return this.loadContentsForLeaves(leaves, force)
+    },
+    loadNodeContents(node, force) {
+      return this.loadContentsForLeaves(this.flattenLeaves([node]), force)
+    },
+    loadContentsForLeaves(leaves, force) {
+      const targets = (leaves || []).filter(leaf => {
+        return force || !Object.prototype.hasOwnProperty.call(this.contentMap, leaf.id)
+      })
+      if (!targets.length) return Promise.resolve()
+      this.contentLoading = true
+      return listContentsByOutlines(targets.map(leaf => leaf.id)).then(res => {
+        const grouped = this.groupContentsByOutline(res.data || [])
+        targets.forEach(leaf => {
+          this.$set(this.contentMap, leaf.id, grouped[leaf.id] || [])
+        })
+      }).finally(() => {
+        this.contentLoading = false
+      })
+    },
+    groupContentsByOutline(contents) {
+      const grouped = {}
+      ;(contents || []).forEach(content => {
+        const key = content.outlineId
+        if (!grouped[key]) grouped[key] = []
+        grouped[key].push(content)
+      })
+      Object.keys(grouped).forEach(key => {
+        grouped[key].sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
+      })
+      return grouped
+    },
+    flattenLeaves(nodes, rows = []) {
+      ;(nodes || []).forEach(node => {
+        if (!node.children || !node.children.length || Number(node.level) === 3) {
+          rows.push(node)
+        } else {
+          this.flattenLeaves(node.children, rows)
+        }
+      })
+      return rows
+    },
+    parseContent(block) {
+      if (!block || !block.content) return {}
+      if (typeof block.content === 'object') return block.content
+      try {
+        return JSON.parse(block.content)
+      } catch (e) {
+        return { text: block.content }
+      }
+    },
+    blockText(block) {
+      return this.parseContent(block).text || ''
+    },
+    contentWordCount(blocks) {
+      return (blocks || []).reduce((count, block) => {
+        return Number(block.contentType) === 1 ? count + this.blockText(block).length : count
+      }, 0)
+    },
+    nodeGeneratedWords(node) {
+      if (!node) return 0
+      if (node.children && node.children.length) {
+        return node.children.reduce((count, child) => count + this.nodeGeneratedWords(child), 0)
+      }
+      if (Object.prototype.hasOwnProperty.call(this.contentMap, node.id)) {
+        return this.contentWordCount(this.contentMap[node.id])
+      }
+      return Number(node.contentWords || 0)
+    },
+    nodeTargetWords(node) {
+      if (!node) return 0
+      if (node.children && node.children.length) {
+        return node.children.reduce((count, child) => count + this.nodeTargetWords(child), 0)
+      }
+      return Number(node.wordLimit || 300)
+    },
+    isNodeGenerated(node) {
+      return this.nodeGeneratedWords(node) > 0
+    },
+    isSelectedContentNode(node) {
+      return !!this.selectedContentNode && String(this.selectedContentNode.id) === String(node.id)
+    },
+    selectGeneratedNode(node) {
+      if (!this.isNodeGenerated(node)) return
+      this.loadNodeContents(node, true).then(() => {
+        const freshNode = this.findTreeNode(this.tree, node.id) || node
+        if (!this.isNodeGenerated(freshNode)) return
+        this.selectedContentNode = freshNode
+        this.contentEditorText = this.buildNodeContentText(freshNode)
+        this.setRichEditorText()
+      })
+    },
+    buildNodeContentText(node) {
+      const leaves = this.flattenLeaves([node])
+      const parts = leaves.map(leaf => {
+        const blocks = this.contentMap[leaf.id] || []
+        const text = blocks
+          .filter(block => Number(block.contentType) === 1)
+          .map(block => this.blockText(block).trim())
+          .filter(Boolean)
+          .join('\n\n')
+        if (!text) return ''
+        return Number(node.level) === 3 ? text : leaf.title + '\n' + text
+      }).filter(Boolean)
+      return parts.join('\n\n')
+    },
+    setRichEditorText() {
+      this.$nextTick(() => {
+        if (this.$refs.richEditor) {
+          this.$refs.richEditor.innerText = this.contentEditorText || ''
+        }
+      })
+    },
+    handleEditorInput(event) {
+      this.contentEditorText = event && event.target ? event.target.innerText : ''
+    },
+    closeContentPane() {
+      this.selectedContentNode = null
+      this.contentEditorText = ''
+    },
+    saveSelectedContent() {
+      if (!this.canSaveSelectedContent || !this.selectedContentNode) return
+      const block = this.selectedContentBlock
+      const selectedId = this.selectedContentNode.id
+      this.contentSaving = true
+      updateContent({
+        id: block.id,
+        outlineId: block.outlineId,
+        contentType: block.contentType,
+        sortOrder: block.sortOrder,
+        content: JSON.stringify({ text: this.contentEditorText, format: { fontSize: 14, bold: false }})
+      }).then(() => {
+        this.$modal.msgSuccess('正文已保存')
+        return this.loadNodeContents(this.selectedContentNode, true)
+      }).then(() => {
+        return this.loadOverview()
+      }).then(() => {
+        const freshNode = this.findTreeNode(this.tree, selectedId) || this.selectedContentNode
+        if (!freshNode) return
+        this.selectedContentNode = freshNode
+        this.contentEditorText = this.buildNodeContentText(freshNode)
+        this.setRichEditorText()
+      }).finally(() => {
+        this.contentSaving = false
+      })
+    },
+    levelText(level) {
+      return Number(level) === 1 ? '章级标题' : Number(level) === 2 ? '节级标题' : '段级标题'
     }
   }
 }
@@ -868,13 +1273,14 @@ export default {
   font-style: normal;
   min-width: 74px;
   text-align: right;
+  font-size: 13px;
 }
 .preview-title-row {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  cursor: pointer;
+  cursor: default;
 }
 .preview-title-row .preview-text {
   flex: 1;
@@ -885,9 +1291,22 @@ export default {
 .preview-title-row i {
   flex: 0 0 auto;
   color: #606a78;
+  cursor: pointer;
 }
 .preview-text {
   min-width: 0;
+}
+.preview-text.clickable {
+  cursor: pointer;
+  color: #303133;
+}
+.preview-text.clickable:hover,
+.preview-text.active {
+  color: #2f66ff;
+}
+.preview-text.disabled {
+  cursor: not-allowed;
+  color: #606266;
 }
 .preview-text.ellipsis {
   overflow: hidden;
@@ -923,6 +1342,11 @@ export default {
   width: 100%;
   max-width: 400px;
 }
+.preview-actions .generating-button {
+  max-width: 430px;
+  border: 0;
+  background: linear-gradient(135deg, #2f6dff, #6c42ff);
+}
 .preview-hero {
   min-width: 0;
   height: 100%;
@@ -956,6 +1380,88 @@ export default {
 }
 .preview-hero:not(.edit-hero) .hero-icon i {
   font-size: 26px;
+}
+.content-pane {
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  background: linear-gradient(135deg, #f3f4fb 0%, #eef2ff 100%);
+  padding: 46px 42px 44px;
+}
+.content-pane-head {
+  max-width: 900px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.content-pane-head h2 {
+  margin: 6px 0 8px;
+  color: #1f2d3d;
+  font-size: 24px;
+  line-height: 1.35;
+}
+.content-pane-head p {
+  margin: 0;
+  color: #6b778c;
+  font-size: 13px;
+}
+.content-level {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: #edf3ff;
+  color: #2f66ff;
+  font-size: 12px;
+}
+.content-editor-shell {
+  max-width: 900px;
+  min-height: 620px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e2e7f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.rich-editor-toolbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #edf0f6;
+  color: #303133;
+  font-weight: 700;
+}
+.rich-editor {
+  flex: 1;
+  min-height: 540px;
+  padding: 18px 22px;
+  outline: none;
+  color: #1f2d3d;
+  font-size: 15px;
+  line-height: 1.78;
+  white-space: pre-wrap;
+  background: #fff;
+}
+.rich-editor.readonly {
+  background: #fbfcff;
+}
+.rich-editor:empty::before {
+  content: '暂无正文内容';
+  color: #a8abb2;
+}
+.content-note {
+  max-width: 900px;
+  margin: 10px auto 0;
+  color: #8b95a7;
+  font-size: 12px;
 }
 .edit-hero {
   padding: 100px 24px 82px;
@@ -1235,6 +1741,64 @@ export default {
 .writing-row > .el-button:last-child {
   position: static;
   margin-top: 8px;
+}
+::v-deep .generate-setting-dialog .el-dialog__body {
+  padding: 22px 34px 18px;
+}
+.generate-setting-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.setting-row label {
+  width: 86px;
+  flex: 0 0 86px;
+  color: #303133;
+  font-size: 14px;
+  font-weight: 700;
+}
+.setting-row.compact {
+  gap: 10px;
+}
+.setting-row.with-note {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.setting-note {
+  width: 100%;
+  margin-left: 102px;
+  color: #f56c6c;
+  font-size: 11px;
+}
+.setting-actions {
+  display: flex;
+  gap: 18px;
+}
+.setting-actions .el-button.active {
+  color: #2f66ff;
+  border-color: #8fb4ff;
+  background: #f2f6ff;
+}
+.style-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+.style-grid ::v-deep .el-radio {
+  margin-right: 0;
+  height: 34px;
+  line-height: 32px;
+}
+.generate-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 @media (max-width: 1280px) {
   .edit-shell {
