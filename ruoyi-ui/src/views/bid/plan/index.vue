@@ -120,6 +120,7 @@
 <script>
 import { deleteBid, listBids, updateBids } from '@/api/bid/bids'
 import { getOutlineTree } from '@/api/bid/outlines'
+import { getPlanOutlineOverview } from '@/api/bid/planOutline'
 
 export default {
   name: 'BidPlan',
@@ -186,7 +187,20 @@ export default {
       this.getList({ autoSelect: false })
     },
     selectPlan(row) {
-      this.$router.push({ path: '/bid/plan/create', query: { bidId: row.id } }).catch(() => {})
+      if (!row || !row.id) return
+      this.loading = true
+      getPlanOutlineOverview(row.id).then(res => {
+        const data = res.data || {}
+        const rows = data.rows || this.flattenOutlines(data.tree || [])
+        const targetPath = this.hasOutlineWordSetting(rows, data.setting)
+          ? '/bid/plan/outline'
+          : '/bid/plan/create'
+        this.$router.push({ path: targetPath, query: { bidId: row.id } }).catch(() => {})
+      }).catch(() => {
+        this.$router.push({ path: '/bid/plan/create', query: { bidId: row.id } }).catch(() => {})
+      }).finally(() => {
+        this.loading = false
+      })
     },
     loadOutline(bidId) {
       return getOutlineTree(bidId).then(res => {
@@ -239,6 +253,12 @@ export default {
     },
     levelText(level) {
       return Number(level) === 1 ? '章' : Number(level) === 2 ? '节' : '目'
+    },
+    hasOutlineWordSetting(rows, setting) {
+      const leaves = (rows || []).filter(item => Number(item.level) === 3)
+      return !!(setting && setting.id) &&
+        leaves.length > 0 &&
+        leaves.every(item => Number(item.wordLimit || 0) > 0)
     },
     flattenOutlines(nodes, rows = []) {
       ;(nodes || []).forEach(node => {

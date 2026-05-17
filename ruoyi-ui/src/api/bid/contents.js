@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { streamPost } from '@/utils/aiStream'
 
 // 根据 outline_id 查询内容块列表
 export function listContentsByOutline(outlineId) {
@@ -18,8 +19,33 @@ export function listContentsByOutlines(outlineIds) {
 
 // 生成内容块
 export function generateContentBlocks(data) {
+  let result
+  return streamPost('/tdw/contents/generate/stream', data, {
+    onDone: payload => {
+      result = payload
+    },
+    onError: payload => {
+      throw new Error(payload || '正文生成失败')
+    }
+  }).then(() => ({
+    code: 200,
+    data: result
+  }))
+}
+
+// 保存大纲节点富文本内容
+export function saveRichContent(data) {
   return request({
-    url: '/tdw/contents/generate',
+    url: '/tdw/contents/rich',
+    method: 'post',
+    data
+  })
+}
+
+// 选中文本AI处理：扩写、缩写、改写、总结图、总结表
+export function applySelectionAi(data) {
+  return request({
+    url: '/tdw/contents/selection/ai',
     method: 'post',
     data
   })

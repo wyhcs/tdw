@@ -21,17 +21,11 @@
 
       <main class="content-column" v-loading="contentLoading">
         <content-block-editor
+          ref="contentEditor"
+          :bid-id="bidId"
           :selected-outline="selectedOutline"
           :blocks="contentBlocks"
-          :selected-block-id="selectedBlock && selectedBlock.id"
-          @select-block="selectedBlock = $event"
-          @add-text="addTextBlock"
-          @add-table="addTableBlock"
-          @add-diagram="addDiagramBlock"
-          @update="updateContentBlock"
-          @remove="removeContentBlock"
-          @move-up="moveContentBlock($event, -1)"
-          @move-down="moveContentBlock($event, 1)"
+          @save-rich="saveRichContentBlock"
         />
       </main>
 
@@ -118,9 +112,9 @@
 <script>
 import { exportPlanHtml, getBids } from '@/api/bid/bids'
 import { deleteOutline, generateOutline, getOutlineTree, insertOutline, sortOutlines, updateOutlineTitle } from '@/api/bid/outlines'
-import { addContent, deleteContent, generateContentBlocks, listContentsByOutline, sortContents, updateContent } from '@/api/bid/contents'
+import { addContent, deleteContent, generateContentBlocks, listContentsByOutline, saveRichContent, sortContents, updateContent } from '@/api/bid/contents'
 import OutlineTree from './OutlineTree.vue'
-import ContentBlockEditor from './ContentBlockEditor.vue'
+import ContentBlockEditor from './RichContentEditor.vue'
 import AiGeneratePanel from './AiGeneratePanel.vue'
 import ExportDialog from './ExportDialog.vue'
 import GalleryImageSelectDialog from '@/views/bid/tool/components/GalleryImageSelectDialog.vue'
@@ -283,6 +277,10 @@ export default {
       this.addContentBlock(1, { text: '请输入正文内容', format: { fontSize: 14, bold: false }})
     },
     addTableBlock() {
+      if (this.$refs.contentEditor && this.selectedOutline) {
+        this.$refs.contentEditor.insertDefaultTable()
+        return
+      }
       this.addContentBlock(2, { title: '响应要点表', headers: ['序号', '内容', '说明'], rows: [['1', '总体响应', '围绕要求形成响应'], ['2', '实施保障', '明确任务、进度和质量控制']] })
     },
     addDiagramBlock() {
@@ -297,6 +295,10 @@ export default {
     },
     insertGalleryImage(image) {
       if (!image) return
+      if (this.$refs.contentEditor && this.selectedOutline) {
+        this.$refs.contentEditor.insertGalleryImage(image)
+        return
+      }
       this.addContentBlock(3, {
         title: image.imageName,
         description: image.description || '',
@@ -319,6 +321,19 @@ export default {
       updateContent(block).then(() => {
         this.$modal.msgSuccess('内容块已保存')
         this.loadContents(this.selectedOutline.id)
+      })
+    },
+    saveRichContentBlock(payload, done) {
+      let saved = false
+      saveRichContent(payload).then(res => {
+        saved = true
+        if (this.selectedOutline && String(this.selectedOutline.id) === String(payload.outlineId)) {
+          this.contentBlocks = res.data ? [res.data] : []
+        }
+      }).catch(() => {
+        this.$modal.msgError('富文本内容保存失败')
+      }).finally(() => {
+        if (typeof done === 'function') done(saved)
       })
     },
     removeContentBlock(block) {
@@ -376,6 +391,7 @@ export default {
         scope: options.scope,
         mode: options.mode,
         requirement: options.requirement,
+        writingStyle: options.writingStyle || 'general',
         includeTable: options.includeTable,
         includeDiagram: options.includeDiagram,
         tenderParseReportId: this.tenderParseReportId

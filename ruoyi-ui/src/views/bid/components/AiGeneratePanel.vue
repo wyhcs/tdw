@@ -13,6 +13,14 @@
           <el-radio-button label="keep">建议</el-radio-button>
         </el-radio-group>
       </el-form-item>
+      <el-form-item label="正文风格">
+        <el-radio-group v-model="form.writingStyle">
+          <el-radio-button label="general">通用型</el-radio-button>
+          <el-radio-button label="data">数据型</el-radio-button>
+          <el-radio-button label="concise">简练型</el-radio-button>
+          <el-radio-button label="practical">实用型</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
       <el-form-item label="补充要求">
         <el-input v-model="form.requirement" type="textarea" :autosize="{ minRows: 3, maxRows: 6 }" :placeholder="placeholder" />
       </el-form-item>
@@ -45,7 +53,7 @@ export default {
   },
   data() {
     return {
-      form: { mode: 'append', requirement: '', includeTable: true, includeDiagram: true }
+      form: { mode: 'append', writingStyle: 'general', requirement: '', includeTable: true, includeDiagram: true }
     }
   },
   computed: {

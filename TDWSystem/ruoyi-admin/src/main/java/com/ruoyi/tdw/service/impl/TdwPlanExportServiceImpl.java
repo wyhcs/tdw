@@ -61,8 +61,21 @@ public class TdwPlanExportServiceImpl implements ITdwPlanExportService
         }
 
         List<TdwOutlines> outlineTree = tdwOutlinesService.selectOutlineTree(request.getBidId());
-        String html = buildHtml(bid, outlineTree, Boolean.TRUE.equals(request.getIncludeEmptyOutline()));
-        String safeTitle = safeFileName(bid.getTitle() == null ? "AI方案" : bid.getTitle());
+        TdwOutlines targetOutline = null;
+        List<TdwOutlines> exportTree = outlineTree;
+        if (request.getOutlineId() != null) {
+            targetOutline = findOutlineById(outlineTree, request.getOutlineId());
+            if (targetOutline == null) {
+                throw new IllegalArgumentException("导出大纲不存在");
+            }
+            exportTree = java.util.Collections.singletonList(targetOutline);
+        }
+        String html = buildHtml(bid, exportTree, Boolean.TRUE.equals(request.getIncludeEmptyOutline()));
+        String exportTitle = bid.getTitle() == null ? "AI方案" : bid.getTitle();
+        if (targetOutline != null && targetOutline.getTitle() != null) {
+            exportTitle += "_" + targetOutline.getTitle();
+        }
+        String safeTitle = safeFileName(exportTitle);
         String fileName = safeTitle + "_" + request.getBidId() + "_" + System.currentTimeMillis() + ".html";
         File dir = new File(RuoYiConfig.getProfile() + File.separator + "download" + File.separator + "bid");
         if (!dir.exists()) {
@@ -76,8 +89,25 @@ public class TdwPlanExportServiceImpl implements ITdwPlanExportService
         result.setFileUrl(Constants.RESOURCE_PREFIX + "/download/bid/" + fileName);
         result.setDownloadName(fileName);
         result.setFileFormat("html");
-        downloadService.recordGeneratedFile("plan", request.getBidId(), fileName, "html", result.getFileUrl(), file.length(), "AI方案HTML导出");
+        downloadService.recordGeneratedFile("plan", request.getBidId(), fileName, "html", result.getFileUrl(), file.length(), targetOutline == null ? "AI方案HTML导出" : "AI方案本节HTML导出");
         return result;
+    }
+
+    private TdwOutlines findOutlineById(List<TdwOutlines> outlines, Long outlineId)
+    {
+        if (outlines == null || outlineId == null) {
+            return null;
+        }
+        for (TdwOutlines outline : outlines) {
+            if (outline != null && outlineId.equals(outline.getId())) {
+                return outline;
+            }
+            TdwOutlines child = findOutlineById(outline == null ? null : outline.getChildren(), outlineId);
+            if (child != null) {
+                return child;
+            }
+        }
+        return null;
     }
 
     private String buildHtml(TdwBids bid, List<TdwOutlines> outlineTree, boolean includeEmptyOutline)
@@ -90,6 +120,7 @@ public class TdwPlanExportServiceImpl implements ITdwPlanExportService
         html.append("h1{font-size:26px;text-align:center;margin:0 0 28px;}h2{font-size:22px;margin-top:28px;}h3{font-size:18px;margin-top:20px;}h4{font-size:16px;margin-top:16px;}");
         html.append("table{border-collapse:collapse;width:100%;margin:10px 0 18px;}th,td{border:1px solid #dcdfe6;padding:8px;text-align:left;}th{background:#f5f7fa;}");
         html.append(".diagram{border:1px solid #ebeef5;padding:12px;margin:10px 0 18px;background:#fafafa;}.mermaid{white-space:pre-wrap;background:#f5f7fa;padding:10px;}");
+        html.append(".bid-ai-diagram{border:1px solid #9ec5fe;border-radius:8px;padding:18px;margin:12px 0 18px;background:#f8fbff;text-align:center;}.bid-ai-diagram-title{font-weight:bold;margin-bottom:12px;}.bid-ai-node{display:inline-block;min-width:120px;margin:6px;padding:10px;border-radius:6px;background:#eaf2ff;color:#1f4f9a;}.bid-image-caption{text-align:center;color:#606266;font-size:13px;margin-top:6px;}");
         html.append("</style></head><body>");
         html.append("<h1>").append(escape(bid.getTitle())).append("</h1>");
         for (TdwOutlines outline : outlineTree) {
@@ -135,6 +166,11 @@ public class TdwPlanExportServiceImpl implements ITdwPlanExportService
         } else if (content.getContentType() != null && content.getContentType() == 3) {
             appendDiagram(html, data);
         } else {
+            Object richHtml = data.get("html");
+            if (richHtml != null && String.valueOf(richHtml).trim().length() > 0) {
+                html.append(String.valueOf(richHtml));
+                return;
+            }
             Object text = firstValue(data, "text", "content");
             html.append("<p>").append(escape(text == null ? content.getContent() : String.valueOf(text))).append("</p>");
         }

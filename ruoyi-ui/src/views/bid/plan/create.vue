@@ -355,11 +355,17 @@
 
         <section class="preview-panel">
           <div class="preview-title">
-            <span>预览目录 {{ outlineRows.length || outlineMarkdown.length }}</span>
+            <span>预览目录 {{ outlineRows.length || streamOutlineMarkdown.length }}</span>
             <small><i class="el-icon-bell" /> 一键差异化目录可改变标题内容，减少查重隐患</small>
           </div>
           <div v-if="generatingOutline" class="markdown-stream-preview">
-            <pre>{{ outlineMarkdown }}</pre>
+            <div
+              v-for="(line, index) in streamOutlineLines"
+              :key="'stream-outline-' + index"
+              class="stream-outline-line"
+            >
+              {{ line }}
+            </div>
           </div>
           <div v-else-if="activeStep >= 4 && outlineRows.length" class="outline-adjust-area">
             <div class="outline-adjust-tree">
@@ -553,7 +559,7 @@ import {
 } from '@/api/bid/bids'
 import { getOutlineTree } from '@/api/bid/outlines'
 import { generateContentBlocks } from '@/api/bid/contents'
-import { applyPlanWordPreset } from '@/api/bid/planOutline'
+import { applyPlanWordPreset, getPlanOutlineOverview } from '@/api/bid/planOutline'
 import { streamPost } from '@/utils/aiStream'
 import WordPresetDialog from './components/WordPresetDialog.vue'
 
@@ -829,6 +835,12 @@ export default {
     },
     outlineEditorHtml() {
       return this.markdownToOutlineHtml(this.outlineMarkdown || this.outlineTreeToMarkdown(this.outlineTree))
+    },
+    streamOutlineMarkdown() {
+      return this.formatOutlineStreamMarkdown(this.outlineMarkdown)
+    },
+    streamOutlineLines() {
+      return this.streamOutlineMarkdown.split(/\n+/).map(line => line.trim()).filter(Boolean)
     }
   },
   watch: {
@@ -1766,11 +1778,11 @@ export default {
           }, {
             onEvent: (eventName, payload) => {
               if (eventName === 'markdown') {
-                this.outlineMarkdown += typeof payload === 'string' ? payload : ''
+                this.appendOutlineMarkdown(payload)
               } else if (eventName === 'done') {
                 const result = payload || {}
                 this.outlineTree = result.outlineTree || this.outlineTree
-                this.outlineMarkdown = result.markdown || this.outlineMarkdown || this.outlineTreeToMarkdown(this.outlineTree)
+                this.outlineMarkdown = result.markdown || this.formatOutlineStreamMarkdown(this.outlineMarkdown) || this.outlineTreeToMarkdown(this.outlineTree)
                 this.outlineEditorMarkdown = this.outlineMarkdown
               }
             },
@@ -1802,6 +1814,7 @@ export default {
           scope: 'full',
           mode: 'overwrite',
           requirement: this.buildContentRequirement(),
+          writingStyle: this.form.writeStyle,
           includeTable: this.generateOptions.includeTable,
           includeDiagram: this.generateOptions.includeDiagram,
           tenderParseReportId: reportId || this.tenderReportId
@@ -1928,6 +1941,26 @@ export default {
       walk(nodes)
       return lines.join('\n')
     },
+    formatOutlineStreamMarkdown(markdown) {
+      const chineseNumberPattern = '一二三四五六七八九十百千万零〇两\\d'
+      return String(markdown || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/(^|\n)\s*#{1,6}\s*正在分析评分项与采购需[求要]\s*/g, '$1')
+        .replace(/(^|\n)\s*正在分析评分项与采购需[求要]\s*/g, '$1')
+        .replace(/([^\n#])(?=#{2,6}\s*)/g, '$1\n\n')
+        .replace(new RegExp('([^\\n#\\s])(?=第[' + chineseNumberPattern + ']+[章节])', 'g'), '$1\n\n')
+        .replace(new RegExp('([^\\n#\\s])(?=[（(][' + chineseNumberPattern + ']+[）)])', 'g'), '$1\n\n')
+        .replace(/(^|\n)(#{2,6})\s*/g, '$1$2 ')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/^\n+/, '')
+    },
+    appendOutlineMarkdown(payload) {
+      const chunk = this.formatOutlineStreamMarkdown(typeof payload === 'string' ? payload : '')
+      if (!chunk) return
+      this.outlineMarkdown = this.formatOutlineStreamMarkdown(
+        this.outlineMarkdown ? this.outlineMarkdown + '\n\n' + chunk : chunk
+      )
+    },
     markdownToOutlineHtml(markdown) {
       const lines = (markdown || '').split(/\r?\n/)
       return lines.map(line => {
@@ -1976,13 +2009,28 @@ export default {
       })
       return rows
     },
+    hasOutlineWordSetting(rows, setting) {
+      const leaves = (rows || []).filter(item => Number(item.level) === 3)
+      return !!(setting && setting.id) &&
+        leaves.length > 0 &&
+        leaves.every(item => Number(item.wordLimit || 0) > 0)
+    },
     levelText(level) {
       return Number(level) === 1 ? '章' : Number(level) === 2 ? '节' : '目'
     },
     openEditor(row) {
       if (!row || !row.id) return
       if (String(row.id) === String(this.bidId)) return
-      this.$router.push({ path: '/bid/plan/create', query: { bidId: row.id } }).catch(() => {})
+      getPlanOutlineOverview(row.id).then(res => {
+        const data = res.data || {}
+        const rows = data.rows || this.flattenOutlines(data.tree || [])
+        const targetPath = this.hasOutlineWordSetting(rows, data.setting)
+          ? '/bid/plan/outline'
+          : '/bid/plan/create'
+        this.$router.push({ path: targetPath, query: { bidId: row.id } }).catch(() => {})
+      }).catch(() => {
+        this.$router.push({ path: '/bid/plan/create', query: { bidId: row.id } }).catch(() => {})
+      })
     },
     openEditorWithOutline(node) {
       if (!this.bidId) return
@@ -2581,9 +2629,9 @@ export default {
   background: #fff;
   border-bottom: 1px solid #cfd6e3;
 }
-.markdown-stream-preview pre {
-  margin: 0;
-  white-space: pre-wrap;
+.stream-outline-line {
+  display: block;
+  margin: 0 0 8px;
   line-height: 1.9;
   color: #303133;
   font-family: inherit;

@@ -4,8 +4,11 @@ import java.util.List;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ruoyi.tdw.domain.TdwContents;
+import com.ruoyi.tdw.domain.dto.TdwContentSelectionAiRequest;
+import com.ruoyi.tdw.domain.dto.TdwContentSelectionAiResult;
 import com.ruoyi.tdw.domain.dto.TdwContentGenerateRequest;
 import com.ruoyi.tdw.domain.dto.TdwContentSortRequest;
+import com.ruoyi.tdw.domain.dto.TdwRichContentSaveRequest;
 
 /**
  * 内容块，支持文本/格/图片混排，随意增删改Service接口
@@ -70,6 +73,10 @@ public interface ITdwContentsService
     public int sortContents(TdwContentSortRequest request);
 
     public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request) throws JsonProcessingException;
+
+    public TdwContents saveRichContent(TdwRichContentSaveRequest request) throws JsonProcessingException;
+
+    public TdwContentSelectionAiResult handleSelectionAi(TdwContentSelectionAiRequest request) throws JsonProcessingException;
 
     String generateContent(Long id) throws JsonProcessingException;
 

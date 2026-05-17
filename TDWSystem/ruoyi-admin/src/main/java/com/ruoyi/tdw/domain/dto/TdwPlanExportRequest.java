@@ -7,6 +7,9 @@ public class TdwPlanExportRequest
 {
     private Long bidId;
 
+    /** 为空时导出全文，不为空时导出指定大纲节点及其子节点。 */
+    private Long outlineId;
+
     /** html为第一阶段默认格式。 */
     private String fileFormat;
 
@@ -20,6 +23,16 @@ public class TdwPlanExportRequest
     public void setBidId(Long bidId)
     {
         this.bidId = bidId;
+    }
+
+    public Long getOutlineId()
+    {
+        return outlineId;
+    }
+
+    public void setOutlineId(Long outlineId)
+    {
+        this.outlineId = outlineId;
     }
 
     public String getFileFormat()

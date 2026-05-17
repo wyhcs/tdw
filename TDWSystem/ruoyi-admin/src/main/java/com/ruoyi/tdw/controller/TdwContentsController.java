@@ -3,11 +3,17 @@ package com.ruoyi.tdw.controller;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletResponse;
 
 import com.ruoyi.common.annotation.Anonymous;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,10 +30,13 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.tdw.domain.TdwContents;
 import com.ruoyi.tdw.domain.dto.TdwContentGenerateRequest;
+import com.ruoyi.tdw.domain.dto.TdwContentSelectionAiRequest;
 import com.ruoyi.tdw.domain.dto.TdwContentSortRequest;
+import com.ruoyi.tdw.domain.dto.TdwRichContentSaveRequest;
 import com.ruoyi.tdw.service.ITdwContentsService;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.common.core.page.TableDataInfo;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * 内容块，支持文本/格/图片混排，随意增删改Controller
@@ -40,6 +49,10 @@ import com.ruoyi.common.core.page.TableDataInfo;
 @RequestMapping("/tdw/contents")
 public class TdwContentsController extends BaseController
 {
+    private final ExecutorService contentGenerateExecutor = Executors.newCachedThreadPool();
+
+    private final ScheduledExecutorService contentHeartbeatExecutor = Executors.newScheduledThreadPool(1);
+
     @Value("${llm.prompt.content-template}")
     private String contentPromptTemplate;
 
@@ -50,6 +63,43 @@ public class TdwContentsController extends BaseController
     @PostMapping(value ="/generate")
     public AjaxResult generate(@RequestBody TdwContentGenerateRequest request) throws IOException {
         return success(tdwContentsService.generateContentBlocks(request));
+    }
+
+    @ApiOperation("流式生成内容块")
+    @PostMapping(value ="/generate/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter generateStream(@RequestBody TdwContentGenerateRequest request) {
+        SseEmitter emitter = new SseEmitter(0L);
+        contentGenerateExecutor.execute(() -> {
+            ScheduledFuture<?> heartbeat = contentHeartbeatExecutor.scheduleAtFixedRate(() -> {
+                try {
+                    sendEvent(emitter, "heartbeat", "generating");
+                } catch (IOException ignored) {
+                }
+            }, 10L, 10L, TimeUnit.SECONDS);
+            try {
+                sendEvent(emitter, "started", "正文生成中");
+                List<TdwContents> contents = tdwContentsService.generateContentBlocks(request);
+                sendEvent(emitter, "done", contents);
+                emitter.complete();
+            } catch (Exception e) {
+                completeWithError(emitter, e);
+            } finally {
+                heartbeat.cancel(true);
+            }
+        });
+        return emitter;
+    }
+
+    @ApiOperation("保存富文本内容")
+    @PostMapping(value ="/rich")
+    public AjaxResult saveRich(@RequestBody TdwRichContentSaveRequest request) throws IOException {
+        return success(tdwContentsService.saveRichContent(request));
+    }
+
+    @ApiOperation("选中文本AI处理")
+    @PostMapping(value ="/selection/ai")
+    public AjaxResult selectionAi(@RequestBody TdwContentSelectionAiRequest request) throws IOException {
+        return success(tdwContentsService.handleSelectionAi(request));
     }
 
     @ApiOperation("根据大纲ID查询内容块列表")
@@ -153,9 +203,25 @@ public class TdwContentsController extends BaseController
      */
     @PreAuthorize("@ss.hasPermi('bid:content:remove')")
     @Log(title = "内容块，支持文本/格/图片混排，随意增删改", businessType = BusinessType.DELETE)
-	@DeleteMapping("/{ids}")
+    @DeleteMapping("/{ids}")
     public AjaxResult remove(@PathVariable Long[] ids)
     {
         return toAjax(tdwContentsService.deleteTdwContentsByIds(ids));
+    }
+
+    private void sendEvent(SseEmitter emitter, String name, Object data) throws IOException
+    {
+        synchronized (emitter) {
+            emitter.send(SseEmitter.event().name(name).data(data));
+        }
+    }
+
+    private void completeWithError(SseEmitter emitter, Exception e)
+    {
+        try {
+            sendEvent(emitter, "error", e.getMessage());
+        } catch (IOException ignored) {
+        }
+        emitter.completeWithError(e);
     }
 }

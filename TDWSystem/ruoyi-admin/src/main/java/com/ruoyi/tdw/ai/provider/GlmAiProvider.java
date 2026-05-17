@@ -3,7 +3,9 @@ package com.ruoyi.tdw.ai.provider;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -102,7 +104,51 @@ public class GlmAiProvider implements AiProvider
     @Override
     public GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request)
     {
-        return mockAiProvider.generateContentBlocks(request);
+        String prompt = request == null ? "" : StringUtils.defaultIfBlank(request.getFinalPrompt(), request.getRequirement());
+        if (StringUtils.isBlank(prompt)) {
+            return mockAiProvider.generateContentBlocks(request);
+        }
+        try {
+            String answer = callChatCompletion(prompt);
+            return parseContentResponse(answer);
+        } catch (RuntimeException e) {
+            log.warn("正文生成大模型调用失败，使用 mock provider 兜底。promptKey={}",
+                    request == null ? "" : request.getPromptKey(), e);
+            return mockAiProvider.generateContentBlocks(request);
+        }
+    }
+
+    private GenerateContentAiResponse parseContentResponse(String answer)
+    {
+        String value = StringUtils.defaultString(answer).trim();
+        String json = extractJson(value);
+        try {
+            GenerateContentAiResponse response = objectMapper.readValue(json, GenerateContentAiResponse.class);
+            if (response.getBlocks() != null && !response.getBlocks().isEmpty()) {
+                return response;
+            }
+        } catch (Exception e) {
+            log.debug("正文生成结果不是结构化内容块，按纯文本处理：{}", truncate(value, 200));
+        }
+        return textContentResponse(value);
+    }
+
+    private GenerateContentAiResponse textContentResponse(String text)
+    {
+        GenerateContentAiResponse response = new GenerateContentAiResponse();
+        GenerateContentAiResponse.ContentBlock block = new GenerateContentAiResponse.ContentBlock();
+        block.setContentType(1);
+        Map<String, Object> content = new LinkedHashMap<String, Object>();
+        content.put("text", StringUtils.defaultString(text));
+        Map<String, Object> format = new LinkedHashMap<String, Object>();
+        format.put("fontSize", 14);
+        format.put("bold", false);
+        content.put("format", format);
+        block.setContent(content);
+        List<GenerateContentAiResponse.ContentBlock> blocks = new ArrayList<GenerateContentAiResponse.ContentBlock>();
+        blocks.add(block);
+        response.setBlocks(blocks);
+        return response;
     }
 
     @Override

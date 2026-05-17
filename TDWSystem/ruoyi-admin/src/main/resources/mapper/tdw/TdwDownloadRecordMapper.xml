@@ -5,15 +5,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 <mapper namespace="com.ruoyi.tdw.mapper.TdwDownloadRecordMapper">
 
     <resultMap type="TdwDownloadRecord" id="TdwDownloadRecordResult">
-        <result property="id" column="id" />
-        <result property="sourceModule" column="source_module" />
-        <result property="sourceId" column="source_id" />
-        <result property="fileName" column="file_name" />
-        <result property="fileType" column="file_type" />
-        <result property="fileUrl" column="file_url" />
-        <result property="fileSize" column="file_size" />
+        <id property="downloadId" column="download_id" />
+        <result property="moduleType" column="module_type" />
+        <result property="bizId" column="biz_id" />
+        <result property="fileId" column="file_id" />
+        <result property="downloadName" column="download_name" />
+        <result property="downloadType" column="download_type" />
+        <result property="fileFormat" column="file_format" />
+        <result property="generateStatus" column="generate_status" />
         <result property="downloadCount" column="download_count" />
         <result property="lastDownloadTime" column="last_download_time" />
+        <result property="expireTime" column="expire_time" />
+        <result property="ownerId" column="owner_id" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -23,53 +26,61 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectDownloadRecordVo">
-        select id, source_module, source_id, file_name, file_type, file_url, file_size, download_count, last_download_time,
-               create_by, create_time, update_by, update_time, remark, del_flag
+        select download_id, module_type, biz_id, file_id, download_name, download_type, file_format, generate_status,
+               download_count, last_download_time, expire_time, owner_id, create_by, create_time, update_by, update_time,
+               remark, del_flag
         from tdw_download_record
     </sql>
 
     <select id="selectDownloadRecordById" parameterType="Long" resultMap="TdwDownloadRecordResult">
         <include refid="selectDownloadRecordVo"/>
-        where id = #{id} and del_flag = '0'
+        where download_id = #{id} and del_flag = '0'
     </select>
 
     <select id="selectDownloadRecordList" parameterType="TdwDownloadRecord" resultMap="TdwDownloadRecordResult">
         <include refid="selectDownloadRecordVo"/>
         <where>
             del_flag = '0'
-            <if test="sourceModule != null and sourceModule != ''"> and source_module = #{sourceModule}</if>
-            <if test="sourceId != null"> and source_id = #{sourceId}</if>
-            <if test="fileName != null and fileName != ''"> and file_name like concat('%', #{fileName}, '%')</if>
-            <if test="fileType != null and fileType != ''"> and file_type = #{fileType}</if>
+            <if test="moduleType != null and moduleType != ''"> and module_type = #{moduleType}</if>
+            <if test="bizId != null"> and biz_id = #{bizId}</if>
+            <if test="downloadName != null and downloadName != ''"> and download_name like concat('%', #{downloadName}, '%')</if>
+            <if test="fileFormat != null and fileFormat != ''"> and file_format = #{fileFormat}</if>
+            <if test="downloadType != null and downloadType != ''"> and download_type = #{downloadType}</if>
+            <if test="generateStatus != null and generateStatus != ''"> and generate_status = #{generateStatus}</if>
             <if test="beginTime != null and beginTime != ''"> and date_format(create_time,'%y%m%d') &gt;= date_format(#{beginTime},'%y%m%d')</if>
             <if test="endTime != null and endTime != ''"> and date_format(create_time,'%y%m%d') &lt;= date_format(#{endTime},'%y%m%d')</if>
         </where>
-        order by create_time desc, id desc
+        order by create_time desc, download_id desc
     </select>
 
-    <insert id="insertDownloadRecord" parameterType="TdwDownloadRecord" useGeneratedKeys="true" keyProperty="id">
-        insert into tdw_download_record(source_module, source_id, file_name, file_type, file_url, file_size, download_count,
-                                        last_download_time, create_by, create_time, update_by, update_time, remark, del_flag)
-        values(#{sourceModule}, #{sourceId}, #{fileName}, #{fileType}, #{fileUrl}, #{fileSize}, #{downloadCount},
-               #{lastDownloadTime}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+    <insert id="insertDownloadRecord" parameterType="TdwDownloadRecord" useGeneratedKeys="true" keyProperty="downloadId">
+        insert into tdw_download_record(module_type, biz_id, file_id, download_name, download_type, file_format,
+                                        generate_status, download_count, last_download_time, expire_time, owner_id,
+                                        create_by, create_time, update_by, update_time, remark, del_flag)
+        values(#{moduleType}, #{bizId}, #{fileId}, #{downloadName}, #{downloadType}, #{fileFormat},
+               #{generateStatus}, #{downloadCount}, #{lastDownloadTime}, #{expireTime}, #{ownerId},
+               #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
     </insert>
 
     <update id="updateDownloadRecord" parameterType="TdwDownloadRecord">
         update tdw_download_record
         <trim prefix="SET" suffixOverrides=",">
-            <if test="sourceModule != null">source_module = #{sourceModule},</if>
-            <if test="sourceId != null">source_id = #{sourceId},</if>
-            <if test="fileName != null">file_name = #{fileName},</if>
-            <if test="fileType != null">file_type = #{fileType},</if>
-            <if test="fileUrl != null">file_url = #{fileUrl},</if>
-            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="moduleType != null">module_type = #{moduleType},</if>
+            <if test="bizId != null">biz_id = #{bizId},</if>
+            <if test="fileId != null">file_id = #{fileId},</if>
+            <if test="downloadName != null">download_name = #{downloadName},</if>
+            <if test="downloadType != null">download_type = #{downloadType},</if>
+            <if test="fileFormat != null">file_format = #{fileFormat},</if>
+            <if test="generateStatus != null">generate_status = #{generateStatus},</if>
             <if test="downloadCount != null">download_count = #{downloadCount},</if>
             <if test="lastDownloadTime != null">last_download_time = #{lastDownloadTime},</if>
+            <if test="expireTime != null">expire_time = #{expireTime},</if>
+            <if test="ownerId != null">owner_id = #{ownerId},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>
         </trim>
-        where id = #{id}
+        where download_id = #{downloadId}
     </update>
 
     <update id="increaseDownloadCount" parameterType="Long">
@@ -77,11 +88,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         set download_count = ifnull(download_count, 0) + 1,
             last_download_time = now(),
             update_time = now()
-        where id = #{id}
+        where download_id = #{id}
     </update>
 
     <delete id="deleteDownloadRecordByIds" parameterType="Long">
-        update tdw_download_record set del_flag = '2', update_time = now() where id in
+        update tdw_download_record set del_flag = '2', update_time = now() where download_id in
         <foreach collection="array" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>

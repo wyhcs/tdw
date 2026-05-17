@@ -163,8 +163,13 @@
       </div>
     </el-dialog>
 
-    <el-dialog title="解析内容" :visible.sync="editorVisible" width="760px" append-to-body>
-      <el-input type="textarea" :rows="16" v-model="richTextContent" />
+    <el-dialog title="解析内容" :visible.sync="editorVisible" width="980px" append-to-body class="knowledge-editor-dialog">
+      <rich-content-editor
+        class="knowledge-rich-editor"
+        :selected-outline="richEditorOutline"
+        :blocks="richTextBlocks"
+        @save-rich="saveKnowledgePreview"
+      />
     </el-dialog>
   </div>
 </template>
@@ -172,9 +177,11 @@
 <script>
 import { listKnowledge, addKnowledge, renameKnowledge, delKnowledge, listKnowledgeFiles, uploadKnowledgeFile, parseKnowledgeFile, extractKnowledgeImages, extractKnowledgeUpload, listKnowledgeChunks } from '@/api/bid/knowledge'
 import { listGalleries } from '@/api/bid/gallery'
+import RichContentEditor from '@/views/bid/components/RichContentEditor.vue'
 
 export default {
   name: 'BidKnowledge',
+  components: { RichContentEditor },
   data() {
     return {
       loading: false,
@@ -190,11 +197,27 @@ export default {
       form: {},
       extractFiles: [],
       extractGalleryId: undefined,
-      richTextContent: '',
+      richEditorOutline: null,
+      richTextHtml: '',
+      richTextText: '',
       queryParams: { pageNum: 1, pageSize: 100, knowledgeName: undefined },
       rules: {
         knowledgeName: [{ required: true, message: '知识库名称不能为空', trigger: 'blur' }]
       }
+    }
+  },
+  computed: {
+    richTextBlocks() {
+      if (!this.richEditorOutline) return []
+      return [{
+        id: this.richEditorOutline.id,
+        outlineId: this.richEditorOutline.id,
+        contentType: 1,
+        content: JSON.stringify({
+          html: this.richTextHtml,
+          text: this.richTextText
+        })
+      }]
     }
   },
   created() {
@@ -322,9 +345,16 @@ export default {
     openRichText(row) {
       listKnowledgeChunks({ knowledgeFileId: row.knowledgeFileId }).then(res => {
         const chunks = res.data || []
-        this.richTextContent = chunks.map(item => item.chunkTitle + '\n' + item.chunkContent).join('\n\n')
+        this.richEditorOutline = { id: row.knowledgeFileId, title: row.fileName, level: 3 }
+        this.richTextHtml = ''
+        this.richTextText = chunks.map(item => item.chunkTitle + '\n' + item.chunkContent).join('\n\n')
         this.editorVisible = true
       })
+    },
+    saveKnowledgePreview(payload, done) {
+      this.richTextHtml = payload.html || ''
+      this.richTextText = payload.text || ''
+      if (typeof done === 'function') done(true)
     },
     validateFile(file, types, maxMb, showMessage = true) {
       if (!file) return false
@@ -524,6 +554,12 @@ export default {
 }
 .extract-tip p {
   margin: 8px 0 0 24px;
+}
+.knowledge-rich-editor {
+  height: 620px;
+}
+.knowledge-editor-dialog ::v-deep .el-dialog__body {
+  padding: 0;
 }
 @media (max-width: 1100px) {
   .knowledge-workspace {

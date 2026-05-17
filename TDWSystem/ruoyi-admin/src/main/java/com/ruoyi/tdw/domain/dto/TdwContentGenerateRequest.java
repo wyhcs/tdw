@@ -22,6 +22,9 @@ public class TdwContentGenerateRequest
     /** 用户补充要求。 */
     private String requirement;
 
+    /** 正文写作风格：general/data/concise/practical 或中文名称。 */
+    private String writingStyle;
+
     /** 招标文件解析报告ID，用于AI标书生成。 */
     private Long tenderParseReportId;
 
@@ -85,6 +88,16 @@ public class TdwContentGenerateRequest
     public void setRequirement(String requirement)
     {
         this.requirement = requirement;
+    }
+
+    public String getWritingStyle()
+    {
+        return writingStyle;
+    }
+
+    public void setWritingStyle(String writingStyle)
+    {
+        this.writingStyle = writingStyle;
     }
 
     public Long getTenderParseReportId()

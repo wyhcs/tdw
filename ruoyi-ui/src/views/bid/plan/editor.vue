@@ -95,66 +95,69 @@
     </section>
 
     <main class="document-area" v-loading="contentLoading">
-      <header class="doc-header">
-        <h1>{{ currentRoot ? currentRoot.title : '按章节查看内容' }}</h1>
-        <div class="doc-actions">
-          <el-button icon="el-icon-refresh" :loading="generatingContent" @click="regenerateNode(currentRoot)">重编本章</el-button>
-          <el-button icon="el-icon-download" :loading="exporting" @click="exportFull">导出本章</el-button>
-          <el-button icon="el-icon-refresh" :disabled="!activeSection" :loading="generatingContent" @click="regenerateNode(activeSection)">重编本节</el-button>
-          <el-button icon="el-icon-download" :loading="exporting" @click="exportFull">导出本节</el-button>
-        </div>
-      </header>
+      <template v-if="currentSection">
+        <header class="doc-section-bar">
+          <div class="section-title-wrap">
+            <span class="section-rail"></span>
+            <h1>{{ currentSection.title }}</h1>
+          </div>
+          <div class="section-actions">
+            <el-button size="mini" type="primary" plain :loading="generatingContent" @click="regenerateNode(currentSection)">重编本节</el-button>
+            <el-button size="mini" type="primary" plain :loading="exporting" @click="exportSection">导出本节</el-button>
+          </div>
+        </header>
 
-      <div v-if="!currentRoot" class="doc-empty">
-        <i class="el-icon-notebook-2" />
-        <p>请在左侧选择章节查看正文。</p>
-      </div>
-
-      <div v-else class="paper">
-        <section v-for="section in currentRoot.children || []" :key="section.id" class="doc-section">
-          <h2 :class="{ active: activeSection && activeSection.id === section.id }">{{ section.title }}</h2>
-          <article v-for="item in section.children || []" :key="item.id" class="doc-item" :class="{ active: selectedOutline && selectedOutline.id === item.id }">
-            <div class="item-head">
-              <h3>{{ item.title }}</h3>
-              <div class="item-tools">
-                <el-button size="mini" icon="el-icon-refresh" :loading="generatingContent" @click="regenerateNode(item)">重编本段</el-button>
-                <el-tooltip content="插入表格" placement="top">
-                  <el-button size="mini" icon="el-icon-s-grid" @click="addTable(item)" />
-                </el-tooltip>
-                <el-tooltip content="插入图示" placement="top">
-                  <el-button size="mini" icon="el-icon-picture-outline" @click="addDiagram(item)" />
-                </el-tooltip>
-                <el-tooltip content="展开" placement="top">
-                  <el-button size="mini" icon="el-icon-full-screen" @click="selectOutline(findRow(item.id))" />
-                </el-tooltip>
-              </div>
-            </div>
-
-            <div v-if="!contentMap[item.id] || !contentMap[item.id].length" class="paragraph-empty">
-              暂无正文，可点击“重编本段”生成。
-            </div>
-            <div v-else class="block-stack">
-              <div v-for="block in contentMap[item.id]" :key="block.id" class="content-block">
-                <template v-if="block.contentType === 1">
-                  <p v-for="(para, index) in textParagraphs(block)" :key="index">{{ para }}</p>
-                  <button class="edit-link" @click="openEditContent(block)">编辑</button>
-                </template>
-                <template v-else-if="block.contentType === 2">
-                  <div class="table-title">{{ parseContent(block).title || '表格内容' }}</div>
-                  <el-table :data="tableRows(parseContent(block))" border size="mini">
-                    <el-table-column v-for="(header, index) in tableHeaders(parseContent(block))" :key="index" :prop="'col' + index" :label="header" />
-                  </el-table>
-                </template>
-                <template v-else>
-                  <div class="diagram-title">{{ parseContent(block).title || '图示内容' }}</div>
-                  <p v-if="parseContent(block).description">{{ parseContent(block).description }}</p>
-                  <pre v-if="parseContent(block).mermaid">{{ parseContent(block).mermaid }}</pre>
-                  <el-image v-if="parseContent(block).imageUrl || parseContent(block).url" :src="resourceUrl(parseContent(block).imageUrl || parseContent(block).url)" fit="contain" />
-                </template>
-              </div>
-            </div>
-          </article>
+        <section class="doc-paragraph-bar">
+          <div class="paragraph-title">{{ currentParagraph ? currentParagraph.title : '请选择段级标题' }}</div>
+          <el-button size="mini" type="primary" plain :disabled="!currentParagraph" :loading="generatingContent" @click="regenerateNode(currentParagraph)">重编本段</el-button>
+          <div class="editor-toolbox">
+            <el-tooltip content="插入文本" placement="bottom">
+              <el-button size="mini" icon="el-icon-edit-outline" :disabled="!currentParagraph" @click="runEditorTool('text')" />
+            </el-tooltip>
+            <el-tooltip content="插入图片" placement="bottom">
+              <el-button size="mini" icon="el-icon-picture-outline" :disabled="!currentParagraph" @click="runEditorTool('image')" />
+            </el-tooltip>
+            <el-tooltip content="插入表格" placement="bottom">
+              <el-button size="mini" icon="el-icon-s-grid" :disabled="!currentParagraph" @click="runEditorTool('table')" />
+            </el-tooltip>
+            <el-tooltip content="清除图表" placement="bottom">
+              <el-button size="mini" icon="el-icon-delete" :disabled="!currentParagraph" @click="runEditorTool('clear')" />
+            </el-tooltip>
+            <el-tooltip content="查看知识库引用" placement="bottom">
+              <el-button size="mini" icon="el-icon-collection" :disabled="!currentParagraph" @click="runEditorTool('refs')" />
+            </el-tooltip>
+            <el-tooltip content="切换全屏" placement="bottom">
+              <el-button size="mini" icon="el-icon-full-screen" :disabled="!currentParagraph" @click="runEditorTool('fullscreen')" />
+            </el-tooltip>
+          </div>
         </section>
+
+        <section class="editor-paper">
+          <div class="heading-gutter">
+            <div class="heading-row h4-row">
+              <span>H4</span>
+              <strong>{{ currentSection.title }}</strong>
+            </div>
+            <div class="heading-row h5-row">
+              <span>H5</span>
+              <strong>{{ currentParagraph ? currentParagraph.title : '段级标题' }}</strong>
+            </div>
+          </div>
+          <rich-content-editor
+            ref="richEditor"
+            :bid-id="bidId"
+            :selected-outline="currentParagraph"
+            :blocks="currentParagraphBlocks"
+            :saving-external="contentSaving"
+            :show-header="false"
+            :show-toolbar="false"
+            @save-rich="saveRichContentBlock"
+          />
+        </section>
+      </template>
+      <div v-else class="doc-empty">
+        <i class="el-icon-document" />
+        <p>请选择左侧节级标题查看正文</p>
       </div>
     </main>
 
@@ -206,12 +209,14 @@
 </template>
 
 <script>
-import { addContent, generateContentBlocks, listContentsByOutlines, updateContent } from '@/api/bid/contents'
+import { addContent, generateContentBlocks, listContentsByOutlines, saveRichContent, updateContent } from '@/api/bid/contents'
 import { exportPlanHtml, getBids, getLatestPlanReport, listBids, parsePlanMaterial, uploadPlanMaterial, updateBids } from '@/api/bid/bids'
 import { deleteOutline, getOutlineTree, insertOutline, sortOutlines, updateOutlineTitle } from '@/api/bid/outlines'
+import RichContentEditor from '@/views/bid/components/RichContentEditor.vue'
 
 export default {
   name: 'BidPlanEditor',
+  components: { RichContentEditor },
   data() {
     return {
       bidId: undefined,
@@ -224,6 +229,7 @@ export default {
       contentMap: {},
       loadedRootMap: {},
       contentLoading: false,
+      contentSaving: false,
       generatingContent: false,
       exporting: false,
       exportDialogVisible: false,
@@ -250,15 +256,23 @@ export default {
       }
       return this.findNodeById(this.outlineTree, this.currentRootId)
     },
-    activeSection() {
+    currentSection() {
       if (!this.selectedOutline || !this.currentRoot) {
-        return (this.currentRoot.children || [])[0]
+        return this.firstSection(this.currentRoot)
       }
-      if (this.selectedOutline.level === 2) return this.findNodeById(this.outlineTree, this.selectedOutline.id)
-      if (this.selectedOutline.level === 3) {
-        return this.findNodeById(this.outlineTree, this.selectedOutline.parentId)
+      const selected = this.findNodeById(this.outlineTree, this.selectedOutline.id) || this.selectedOutline
+      if (Number(selected.level) === 2) return selected
+      if (Number(selected.level) === 3) {
+        return this.findNodeById(this.outlineTree, selected.parentId) || this.firstSection(this.currentRoot)
       }
-      return (this.currentRoot.children || [])[0]
+      return this.firstSection(selected) || this.firstSection(this.currentRoot)
+    },
+    currentParagraph() {
+      if (!this.currentSection) return null
+      if (this.selectedOutline && Number(this.selectedOutline.level) === 3) {
+        return this.findNodeById(this.outlineTree, this.selectedOutline.id) || this.selectedOutline
+      }
+      return this.firstContentNode(this.currentSection)
     },
     targetWords() {
       const match = String(this.bid.note || '').match(/目标字数：(\d+)/)
@@ -282,6 +296,10 @@ export default {
     currentPages() {
       return Math.max(1, Math.ceil((this.generatedWords || 1) / 560))
     },
+    currentParagraphBlocks() {
+      if (!this.currentParagraph) return []
+      return this.contentMap[this.currentParagraph.id] || []
+    },
     outlineDialogTitle() {
       const map = { 'add-root': '新增章', 'add-child': '新增子级', 'add-after': '同级后插入', rename: '修改标题' }
       return map[this.outlineDialogMode] || '编辑大纲'
@@ -294,7 +312,7 @@ export default {
     this.loadBid()
     this.loadOutline().then(() => {
       const focusId = this.$route.query.outlineId
-      const row = focusId ? this.findRow(focusId) : this.outlineRows[0]
+      const row = focusId ? this.findRow(focusId) : this.defaultEditorRow()
       if (row) this.selectOutline(row)
     })
     this.loadLatestReport()
@@ -327,6 +345,11 @@ export default {
         }
       })
     },
+    defaultEditorRow() {
+      return this.outlineRows.find(item => Number(item.level) === 2) ||
+        this.outlineRows.find(item => Number(item.level) === 3) ||
+        this.outlineRows[0]
+    },
     switchPlan(item) {
       this.$router.replace({ path: '/bid/plan/editor', query: { bidId: item.id } })
       this.bidId = item.id
@@ -337,7 +360,8 @@ export default {
       this.loadedRootMap = {}
       this.tenderReportId = undefined
       this.loadOutline().then(() => {
-        if (this.outlineRows[0]) this.selectOutline(this.outlineRows[0])
+        const row = this.defaultEditorRow()
+        if (row) this.selectOutline(row)
       })
       this.loadLatestReport()
     },
@@ -349,6 +373,28 @@ export default {
       if (rootChanged || !this.loadedRootMap[nextRootId]) {
         this.loadChapterContent()
       }
+    },
+    firstSection(node) {
+      if (!node) return null
+      if (Number(node.level) === 2) return node
+      const children = node.children || []
+      const direct = children.find(item => Number(item.level) === 2)
+      if (direct) return direct
+      for (const child of children) {
+        const section = this.firstSection(child)
+        if (section) return section
+      }
+      return null
+    },
+    firstContentNode(node) {
+      if (!node) return null
+      if (Number(node.level) === 3) return node
+      const children = node.children || []
+      for (const child of children) {
+        const leaf = this.firstContentNode(child)
+        if (leaf) return leaf
+      }
+      return null
     },
     loadChapterContent(force) {
       if (!this.currentRoot) return Promise.resolve()
@@ -377,6 +423,7 @@ export default {
         scope: 'full',
         mode: 'overwrite',
         requirement: '按当前三级目录重新生成全文内容，保持服务方案专业表达。',
+        writingStyle: 'general',
         includeTable: false,
         includeDiagram: false,
         tenderParseReportId: this.tenderReportId
@@ -398,6 +445,7 @@ export default {
         scope: 'selected',
         mode: 'overwrite',
         requirement: '请重编当前范围内容，突出技术响应、实施可行性和质量保障。',
+        writingStyle: 'general',
         includeTable: false,
         includeDiagram: false,
         tenderParseReportId: this.tenderReportId
@@ -407,6 +455,22 @@ export default {
       }).finally(() => {
         this.generatingContent = false
       })
+    },
+    runEditorTool(action) {
+      const editor = this.$refs.richEditor
+      if (!this.currentParagraph || !editor) {
+        this.$modal.msgWarning('请先选择段级标题')
+        return
+      }
+      const handlers = {
+        text: () => editor.openTextInsertDialog(),
+        image: () => editor.openGalleryDialog(),
+        table: () => editor.insertDefaultTable(),
+        clear: () => editor.clearCharts(),
+        refs: () => editor.openRefs(),
+        fullscreen: () => editor.toggleFullscreen()
+      }
+      if (handlers[action]) handlers[action]()
     },
     handlePromptChange(file) {
       if (!this.validatePromptFile(file)) return
@@ -479,10 +543,41 @@ export default {
         this.loadChapterContent(true)
       })
     },
+    saveRichContentBlock(payload, done) {
+      this.contentSaving = true
+      let saved = false
+      saveRichContent(payload).then(res => {
+        saved = true
+        const content = res.data
+        if (content && payload.outlineId) {
+          this.$set(this.contentMap, payload.outlineId, [content])
+        }
+      }).catch(() => {
+        this.$modal.msgError('富文本内容保存失败')
+      }).finally(() => {
+        this.contentSaving = false
+        if (typeof done === 'function') done(saved)
+      })
+    },
     exportFull() {
       if (!this.bidId) return
       this.exporting = true
       exportPlanHtml({ bidId: this.bidId, fileFormat: 'html', includeEmptyOutline: true }).then(res => {
+        this.exportResult = res.data || {}
+        this.exportDialogVisible = true
+      }).finally(() => {
+        this.exporting = false
+      })
+    },
+    exportSection() {
+      if (!this.bidId || !this.currentSection) return
+      this.exporting = true
+      exportPlanHtml({
+        bidId: this.bidId,
+        outlineId: this.currentSection.id,
+        fileFormat: 'html',
+        includeEmptyOutline: true
+      }).then(res => {
         this.exportResult = res.data || {}
         this.exportDialogVisible = true
       }).finally(() => {
@@ -829,32 +924,131 @@ export default {
 }
 .document-area {
   min-width: 0;
-  background: #f8f9fc;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  overflow: hidden;
 }
-.doc-header {
+.doc-section-bar {
   position: sticky;
   top: 0;
-  z-index: 2;
-  min-height: 118px;
+  z-index: 3;
+  min-height: 42px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px 88px 12px;
+  gap: 12px;
+  padding: 0 18px;
   border-bottom: 1px solid #cfd6e3;
   background: #fff;
 }
-.doc-header h1 {
+.section-title-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.section-rail {
+  width: 4px;
+  height: 26px;
+  background: #6b7280;
+}
+.doc-section-bar h1 {
   margin: 0;
-  font-size: 24px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
   color: #111827;
 }
-.doc-actions {
+.section-actions {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.doc-paragraph-bar {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  border-bottom: 1px solid #dfe4ee;
+  background: #fff;
+}
+.paragraph-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 700;
+}
+.editor-toolbox {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.editor-toolbox .el-button {
+  padding: 6px;
+  border-color: transparent;
+}
+.editor-paper {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+}
+.heading-gutter,
+.editor-paper ::v-deep .rich-content-editor {
+  max-width: 980px;
+  margin: 0 auto;
+  border-left: 1px solid #dfe4ee;
+  border-right: 1px solid #dfe4ee;
+  background: #fff;
+}
+.heading-gutter {
+  padding: 26px 34px 0;
+}
+.heading-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: baseline;
   gap: 10px;
+  margin-bottom: 12px;
+}
+.heading-row span {
+  color: #b5bdc9;
+  font-size: 14px;
+}
+.heading-row strong {
+  color: #111827;
+  line-height: 1.45;
+}
+.h4-row strong {
+  font-size: 22px;
+}
+.h5-row strong {
+  font-size: 19px;
+}
+.editor-paper ::v-deep .rich-content-editor {
+  height: auto;
+  min-height: 0;
+}
+.document-area ::v-deep .rich-content-editor {
+  flex: 0 0 auto;
+}
+.editor-paper ::v-deep .editor-stage {
+  overflow: visible;
+  background: #fff;
+}
+.editor-paper ::v-deep .rich-content-editor.embedded .tiptap-host {
+  min-height: 0;
+}
+.editor-paper ::v-deep .rich-content-editor.embedded .tiptap-host .tiptap-surface {
+  min-height: calc(100vh - 288px);
+  padding-top: 8px;
 }
 .doc-empty {
   height: calc(100vh - 220px);

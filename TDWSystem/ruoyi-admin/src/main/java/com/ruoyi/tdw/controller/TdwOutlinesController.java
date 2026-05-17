@@ -59,7 +59,6 @@ public class TdwOutlinesController extends BaseController
         SseEmitter emitter = new SseEmitter(0L);
         streamExecutor.execute(() -> {
             try {
-                sendEvent(emitter, "markdown", "### 正在分析评分项与采购需求\n\n");
                 Long bidId = tdwOutlinesService.generateOutline(request, markdown -> {
                     try {
                         sendEvent(emitter, "markdown", markdown);

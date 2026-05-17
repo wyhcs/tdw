@@ -75,7 +75,7 @@ public class MockAiProvider implements AiProvider
     @Override
     public String optimizeContent(GenerateContentAiRequest request)
     {
-        return prefixExisting(request, "已优化：");
+        return prefixExisting(request, "已改写：");
     }
 
     @Override
@@ -373,7 +373,8 @@ public class MockAiProvider implements AiProvider
         Map<String, Object> root = new LinkedHashMap<String, Object>();
         String text = teachingResourceParagraph(request);
         if (text == null) {
-            text = "围绕“" + safe(request.getOutlineTitle()) + "”生成的正文内容。" + requirementSuffix(request) + knowledgeSuffix(request.getKnowledgeContext());
+            text = "【" + safeStyle(request) + "】围绕“" + safe(request.getOutlineTitle()) + "”生成的正文内容。"
+                    + requirementSuffix(request) + knowledgeSuffix(request.getKnowledgeContext());
         }
         root.put("text", text);
         Map<String, Object> format = new LinkedHashMap<String, Object>();
@@ -536,5 +537,11 @@ public class MockAiProvider implements AiProvider
     private String safe(String text)
     {
         return text == null ? "" : text;
+    }
+
+    private String safeStyle(GenerateContentAiRequest request)
+    {
+        String style = request == null ? "" : request.getWritingStyle();
+        return style == null || style.trim().length() == 0 ? "通用型" : style.trim();
     }
 }

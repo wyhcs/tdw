@@ -56,7 +56,7 @@
                     <i :class="isPreviewCollapsed(chapter.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="togglePreviewCollapse(chapter.id)" />
                     <strong
                       class="preview-text ellipsis"
-                      :class="{ clickable: isNodeGenerated(chapter), disabled: !isNodeGenerated(chapter), active: isSelectedContentNode(chapter) }"
+                      :class="{ clickable: true, active: isSelectedContentNode(chapter) }"
                       :title="chapter.title"
                       @click.stop="selectGeneratedNode(chapter)"
                     >{{ chapter.title }}</strong>
@@ -68,7 +68,7 @@
                         <i :class="isPreviewCollapsed(section.id) ? 'el-icon-caret-right' : 'el-icon-caret-bottom'" @click.stop="togglePreviewCollapse(section.id)" />
                         <span
                           class="preview-text ellipsis"
-                          :class="{ clickable: isNodeGenerated(section), disabled: !isNodeGenerated(section), active: isSelectedContentNode(section) }"
+                          :class="{ clickable: true, active: isSelectedContentNode(section) }"
                           :title="section.title"
                           @click.stop="selectGeneratedNode(section)"
                         >{{ section.title }}</span>
@@ -79,7 +79,7 @@
                           <i class="dot" />
                           <span
                             class="preview-text ellipsis"
-                            :class="{ clickable: isNodeGenerated(item), disabled: !isNodeGenerated(item), active: isSelectedContentNode(item) }"
+                            :class="{ clickable: true, active: isSelectedContentNode(item) }"
                             :title="item.title"
                             @click.stop="selectGeneratedNode(item)"
                           >{{ item.title }}</span>
@@ -131,28 +131,58 @@
           </div>
         </aside>
         <aside v-else class="content-pane" v-loading="contentLoading">
-          <header class="content-pane-head">
-            <div>
-              <span class="content-level">{{ levelText(selectedContentNode.level) }}</span>
-              <h2>{{ selectedContentNode.title }}</h2>
-              <p><b class="success">{{ nodeGeneratedWords(selectedContentNode) }}</b> / {{ nodeTargetWords(selectedContentNode) }} 字</p>
+          <div class="content-title-stack">
+            <div v-if="visibleChapterTitle" class="content-title-row chapter-title-row">
+              <strong>{{ visibleChapterTitle.title }}</strong>
+              <span class="title-count"><b class="success">{{ nodeGeneratedWords(visibleChapterTitle) }}</b> / {{ nodeTargetWords(visibleChapterTitle) }} 字</span>
+              <el-button size="mini" type="primary" plain :loading="rewritingNodeId === visibleChapterTitle.id" @click="regenerateContentNode(visibleChapterTitle)">重编本章</el-button>
+              <el-button size="mini" type="primary" plain :loading="exportingNodeId === visibleChapterTitle.id" @click="exportContentNode(visibleChapterTitle)">导出本章</el-button>
+              <el-button class="close-pane-button" size="mini" icon="el-icon-close" @click="closeContentPane">关闭</el-button>
             </div>
-            <el-button size="mini" icon="el-icon-close" @click="closeContentPane">关闭</el-button>
-          </header>
-          <div class="content-editor-shell">
-            <div class="rich-editor-toolbar">
-              <span>正文内容</span>
-              <el-button size="mini" type="primary" :disabled="!canSaveSelectedContent" :loading="contentSaving" @click="saveSelectedContent">保存</el-button>
+            <div v-if="visibleSectionTitle" class="content-title-row section-title-row">
+              <strong>{{ visibleSectionTitle.title }}</strong>
+              <span class="title-count"><b class="success">{{ nodeGeneratedWords(visibleSectionTitle) }}</b> / {{ nodeTargetWords(visibleSectionTitle) }} 字</span>
+              <el-button size="mini" type="primary" plain :loading="rewritingNodeId === visibleSectionTitle.id" @click="regenerateContentNode(visibleSectionTitle)">重编本级</el-button>
+              <el-button size="mini" type="primary" plain :loading="exportingNodeId === visibleSectionTitle.id" @click="exportContentNode(visibleSectionTitle)">导出本节</el-button>
             </div>
-            <div
-              ref="richEditor"
-              class="rich-editor"
-              :class="{ readonly: !canSaveSelectedContent }"
-              :contenteditable="canSaveSelectedContent"
-              @input="handleEditorInput"
-            ></div>
+            <div v-if="visibleParagraphTitle" class="content-title-row paragraph-title-row">
+              <strong>{{ visibleParagraphTitle.title }}</strong>
+              <span class="title-count"><b class="success">{{ nodeGeneratedWords(visibleParagraphTitle) }}</b> / {{ nodeTargetWords(visibleParagraphTitle) }} 字</span>
+              <el-button size="mini" type="primary" plain :loading="rewritingNodeId === visibleParagraphTitle.id" @click="regenerateContentNode(visibleParagraphTitle)">重编本段</el-button>
+              <div class="editor-toolbox">
+                <el-tooltip content="插入文本" placement="bottom">
+                  <el-button size="mini" icon="el-icon-edit-outline" @click="runEditorTool('text')" />
+                </el-tooltip>
+                <el-tooltip content="插入图片" placement="bottom">
+                  <el-button size="mini" icon="el-icon-picture-outline" @click="runEditorTool('image')" />
+                </el-tooltip>
+                <el-tooltip content="插入表格" placement="bottom">
+                  <el-button size="mini" icon="el-icon-s-grid" @click="runEditorTool('table')" />
+                </el-tooltip>
+                <el-tooltip content="清除图表" placement="bottom">
+                  <el-button size="mini" icon="el-icon-delete" @click="runEditorTool('clear')" />
+                </el-tooltip>
+                <el-tooltip content="查看知识库引用" placement="bottom">
+                  <el-button size="mini" icon="el-icon-collection" @click="runEditorTool('refs')" />
+                </el-tooltip>
+                <el-tooltip content="切换全屏" placement="bottom">
+                  <el-button size="mini" icon="el-icon-full-screen" @click="runEditorTool('fullscreen')" />
+                </el-tooltip>
+              </div>
+            </div>
           </div>
-          <p v-if="!canSaveSelectedContent" class="content-note">章级和节级标题展示已生成段落汇总，段级标题可直接保存正文。</p>
+          <div class="content-editor-shell rich-editor-shell">
+            <rich-content-editor
+              ref="contentRichEditor"
+              :bid-id="bidId"
+              :selected-outline="selectedContentNode"
+              :blocks="selectedContentBlocks"
+              :saving-external="contentSaving"
+              :show-header="false"
+              @save-rich="saveSelectedRichContent"
+            />
+          </div>
+          <p v-if="Number(selectedContentNode.level) !== 3" class="content-note">章级和节级标题默认展示下级段落汇总，编辑后会保存为当前标题的富文本内容。</p>
         </aside>
       </section>
 
@@ -424,13 +454,24 @@
         <el-button size="small" type="primary" :loading="generatingContent" @click="confirmContentGenerate">开始生成</el-button>
       </div>
     </el-dialog>
+    <el-dialog title="导出完成" :visible.sync="exportDialogVisible" width="520px" append-to-body>
+      <div class="export-result">
+        <p>导出文件已生成。</p>
+        <el-link v-if="exportResult.fileUrl" type="primary" :href="resourceUrl(exportResult.fileUrl)" target="_blank">
+          {{ exportResult.downloadName || '打开导出文件' }}
+        </el-link>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="exportDialogVisible = false">知道了</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import draggable from 'vuedraggable'
-import { listBids } from '@/api/bid/bids'
-import { generateContentBlocks, listContentsByOutlines, updateContent } from '@/api/bid/contents'
+import { exportPlanHtml, listBids } from '@/api/bid/bids'
+import { generateContentBlocks, listContentsByOutlines, saveRichContent } from '@/api/bid/contents'
 import {
   addOutlineChild,
   addOutlineParagraph,
@@ -452,6 +493,7 @@ import AddNodeDialog from './components/AddNodeDialog.vue'
 import AiWritingDialog from './components/AiWritingDialog.vue'
 import NodeActions from './components/EditNodeActions.vue'
 import NodeTitle from './components/EditNodeTitle.vue'
+import RichContentEditor from '@/views/bid/components/RichContentEditor.vue'
 import WordPresetDialog from './components/WordPresetDialog.vue'
 
 export default {
@@ -462,7 +504,8 @@ export default {
     AddNodeDialog,
     AiWritingDialog,
     NodeTitle,
-    NodeActions
+    NodeActions,
+    RichContentEditor
   },
   data() {
     return {
@@ -502,9 +545,12 @@ export default {
       },
       contentMap: {},
       selectedContentNode: null,
-      contentEditorText: '',
       contentLoading: false,
       contentSaving: false,
+      rewritingNodeId: undefined,
+      exportingNodeId: undefined,
+      exportDialogVisible: false,
+      exportResult: {},
       wordOptions: [300, 600, 900, 1200, 1800, 2700, 3600, 4500, 5400, 6300, 7200, 8100, 9000, 9900]
     }
   },
@@ -520,13 +566,49 @@ export default {
       }
       return Number(this.stats.currentPages || 0)
     },
-    selectedContentBlock() {
-      if (!this.selectedContentNode || Number(this.selectedContentNode.level) !== 3) return null
-      const blocks = this.contentMap[this.selectedContentNode.id] || []
-      return blocks.find(block => Number(block.contentType) === 1) || null
+    selectedContentLevel() {
+      return Number(this.selectedContentNode && this.selectedContentNode.level)
     },
-    canSaveSelectedContent() {
-      return !!this.selectedContentBlock && !this.contentLoading
+    visibleChapterTitle() {
+      return this.selectedContentLevel === 1 ? this.selectedContentNode : null
+    },
+    visibleSectionTitle() {
+      if (this.selectedContentLevel === 1) {
+        return this.firstSection(this.selectedContentNode)
+      }
+      if (this.selectedContentLevel === 2) {
+        return this.selectedContentNode
+      }
+      return null
+    },
+    visibleParagraphTitle() {
+      if (this.selectedContentLevel === 1) {
+        const section = this.firstSection(this.selectedContentNode)
+        return this.firstContentNode(section || this.selectedContentNode)
+      }
+      if (this.selectedContentLevel === 2) {
+        return this.firstContentNode(this.selectedContentNode)
+      }
+      if (this.selectedContentLevel === 3) {
+        return this.selectedContentNode
+      }
+      return null
+    },
+    selectedContentBlocks() {
+      if (!this.selectedContentNode) return []
+      const ownBlocks = this.contentMap[this.selectedContentNode.id] || []
+      if (ownBlocks.length || Number(this.selectedContentNode.level) === 3) {
+        return ownBlocks
+      }
+      const text = this.buildNodeContentText(this.selectedContentNode)
+      if (!text) return []
+      return [{
+        id: 'summary-' + this.selectedContentNode.id,
+        outlineId: this.selectedContentNode.id,
+        contentType: 1,
+        sortOrder: 1,
+        content: JSON.stringify({ text })
+      }]
     }
   },
   created() {
@@ -555,7 +637,6 @@ export default {
       this.previewCollapseMap = {}
       this.contentMap = {}
       this.selectedContentNode = null
-      this.contentEditorText = ''
       this.loadOverview().then(() => this.loadAllGeneratedContents(true))
     },
     loadOverview() {
@@ -678,6 +759,42 @@ export default {
         if (String(node.id) === String(nodeId)) return node
         const child = this.findTreeNode(node.children || [], nodeId)
         if (child) return child
+      }
+      return null
+    },
+    findNodePath(nodes, nodeId, path = []) {
+      for (const node of nodes || []) {
+        const nextPath = path.concat(node)
+        if (String(node.id) === String(nodeId)) return nextPath
+        const childPath = this.findNodePath(node.children || [], nodeId, nextPath)
+        if (childPath.length) return childPath
+      }
+      return []
+    },
+    nodeAtLevel(node, level) {
+      if (!node) return null
+      if (Number(node.level) === Number(level)) return node
+      const path = this.findNodePath(this.tree, node.id)
+      return path.find(item => Number(item.level) === Number(level)) || null
+    },
+    firstSection(node) {
+      if (!node) return null
+      if (Number(node.level) === 2) return node
+      const children = node.children || []
+      const direct = children.find(item => Number(item.level) === 2)
+      if (direct) return direct
+      for (const child of children) {
+        const section = this.firstSection(child)
+        if (section) return section
+      }
+      return null
+    },
+    firstContentNode(node) {
+      if (!node) return null
+      if (Number(node.level) === 3) return node
+      for (const child of node.children || []) {
+        const leaf = this.firstContentNode(child)
+        if (leaf) return leaf
       }
       return null
     },
@@ -829,6 +946,7 @@ export default {
           scope: 'full',
           mode: 'overwrite',
           requirement: this.buildGenerateRequirement(),
+          writingStyle: this.generateSettings.writingStyle,
           includeTable: this.generateSettings.tableCount !== 'none',
           includeDiagram: this.generateSettings.chartCount !== 'none' || this.generateSettings.autoImage !== 'none',
           knowledgeFileIds: [],
@@ -843,14 +961,65 @@ export default {
           const freshNode = this.findTreeNode(this.tree, this.selectedContentNode.id)
           if (freshNode && this.isNodeGenerated(freshNode)) {
             this.selectedContentNode = freshNode
-            this.contentEditorText = this.buildNodeContentText(freshNode)
-            this.setRichEditorText()
           }
         }
         this.$modal.msgSuccess('正文生成完成')
       }).finally(() => {
         this.generatingContent = false
       })
+    },
+    regenerateContentNode(node) {
+      if (!node || this.rewritingNodeId) return
+      this.rewritingNodeId = node.id
+      generateContentBlocks({
+        bidId: this.bidId,
+        outlineId: node.id,
+        scope: 'selected',
+        mode: 'overwrite',
+        requirement: '请重编当前' + this.levelText(node.level) + '范围内正文内容，保持服务方案专业表达，并与上下级标题语义一致。',
+        writingStyle: this.generateSettings.writingStyle,
+        includeTable: false,
+        includeDiagram: false,
+        knowledgeFileIds: [],
+        knowledgeChunkIds: []
+      }).then(() => {
+        this.$modal.msgSuccess('重编完成')
+        return this.loadOverview()
+      }).then(() => {
+        const active = this.selectedContentNode ? (this.findTreeNode(this.tree, this.selectedContentNode.id) || this.selectedContentNode) : node
+        this.selectedContentNode = active
+        return this.loadNodeContents(active, true)
+      }).finally(() => {
+        this.rewritingNodeId = undefined
+      })
+    },
+    exportContentNode(node) {
+      if (!node || this.exportingNodeId) return
+      this.exportingNodeId = node.id
+      exportPlanHtml({
+        bidId: this.bidId,
+        outlineId: node.id,
+        fileFormat: 'html',
+        includeEmptyOutline: true
+      }).then(res => {
+        this.exportResult = res.data || {}
+        this.exportDialogVisible = true
+      }).finally(() => {
+        this.exportingNodeId = undefined
+      })
+    },
+    runEditorTool(action) {
+      const editor = this.$refs.contentRichEditor
+      if (!editor) return
+      const handlers = {
+        text: () => editor.openTextInsertDialog(),
+        image: () => editor.openGalleryDialog(),
+        table: () => editor.insertDefaultTable(),
+        clear: () => editor.clearCharts(),
+        refs: () => editor.openRefs(),
+        fullscreen: () => editor.toggleFullscreen()
+      }
+      if (handlers[action]) handlers[action]()
     },
     buildGenerateRequirement() {
       const quantityMap = { normal: '一般', less: '较少', more: '较多', none: '无' }
@@ -869,7 +1038,14 @@ export default {
       return this.loadContentsForLeaves(leaves, force)
     },
     loadNodeContents(node, force) {
-      return this.loadContentsForLeaves(this.flattenLeaves([node]), force)
+      if (!node) return Promise.resolve()
+      const targets = [node]
+      this.flattenLeaves([node]).forEach(leaf => {
+        if (!targets.some(item => String(item.id) === String(leaf.id))) {
+          targets.push(leaf)
+        }
+      })
+      return this.loadContentsForLeaves(targets, force)
     },
     loadContentsForLeaves(leaves, force) {
       const targets = (leaves || []).filter(leaf => {
@@ -949,13 +1125,9 @@ export default {
       return !!this.selectedContentNode && String(this.selectedContentNode.id) === String(node.id)
     },
     selectGeneratedNode(node) {
-      if (!this.isNodeGenerated(node)) return
       this.loadNodeContents(node, true).then(() => {
         const freshNode = this.findTreeNode(this.tree, node.id) || node
-        if (!this.isNodeGenerated(freshNode)) return
         this.selectedContentNode = freshNode
-        this.contentEditorText = this.buildNodeContentText(freshNode)
-        this.setRichEditorText()
       })
     },
     buildNodeContentText(node) {
@@ -972,48 +1144,33 @@ export default {
       }).filter(Boolean)
       return parts.join('\n\n')
     },
-    setRichEditorText() {
-      this.$nextTick(() => {
-        if (this.$refs.richEditor) {
-          this.$refs.richEditor.innerText = this.contentEditorText || ''
-        }
-      })
-    },
-    handleEditorInput(event) {
-      this.contentEditorText = event && event.target ? event.target.innerText : ''
-    },
     closeContentPane() {
       this.selectedContentNode = null
-      this.contentEditorText = ''
     },
-    saveSelectedContent() {
-      if (!this.canSaveSelectedContent || !this.selectedContentNode) return
-      const block = this.selectedContentBlock
-      const selectedId = this.selectedContentNode.id
+    saveSelectedRichContent(payload, done) {
+      if (!this.selectedContentNode) return
       this.contentSaving = true
-      updateContent({
-        id: block.id,
-        outlineId: block.outlineId,
-        contentType: block.contentType,
-        sortOrder: block.sortOrder,
-        content: JSON.stringify({ text: this.contentEditorText, format: { fontSize: 14, bold: false }})
-      }).then(() => {
-        this.$modal.msgSuccess('正文已保存')
-        return this.loadNodeContents(this.selectedContentNode, true)
-      }).then(() => {
-        return this.loadOverview()
-      }).then(() => {
-        const freshNode = this.findTreeNode(this.tree, selectedId) || this.selectedContentNode
-        if (!freshNode) return
-        this.selectedContentNode = freshNode
-        this.contentEditorText = this.buildNodeContentText(freshNode)
-        this.setRichEditorText()
+      let saved = false
+      saveRichContent(Object.assign({}, payload, { bidId: this.bidId || payload.bidId })).then(res => {
+        saved = true
+        const content = res.data
+        if (content && payload.outlineId) {
+          this.$set(this.contentMap, payload.outlineId, [content])
+        }
+      }).catch(() => {
+        this.$modal.msgError('富文本内容保存失败')
       }).finally(() => {
         this.contentSaving = false
+        if (typeof done === 'function') done(saved)
       })
     },
     levelText(level) {
       return Number(level) === 1 ? '章级标题' : Number(level) === 2 ? '节级标题' : '段级标题'
+    },
+    resourceUrl(url) {
+      if (!url) return ''
+      if (/^https?:\/\//.test(url)) return url
+      return process.env.VUE_APP_BASE_API + url
     }
   }
 }
@@ -1097,20 +1254,21 @@ export default {
   flex-direction: column;
 }
 .project-head {
-  min-height: 92px;
+  min-height: 76px;
   border-bottom: 1px solid #dfe4ee;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 22px;
+  padding: 12px 16px;
 }
 .project-head h1 {
-  margin: 0 0 10px;
-  font-size: 20px;
+  margin: 0 0 8px;
+  font-size: 18px;
+  line-height: 1.25;
   color: #1f2d3d;
 }
 .project-head p {
-  margin: 4px 0;
+  margin: 2px 0;
   color: #606266;
 }
 .project-head .head-note {
@@ -1121,7 +1279,7 @@ export default {
 .project-head-inline {
   min-height: auto;
   border-bottom: 0;
-  padding: 14px 0 12px;
+  padding: 10px 0;
   align-items: flex-start;
 }
 .project-head-inline .el-button {
@@ -1142,7 +1300,7 @@ export default {
   line-height: 1.5;
 }
 .project-head span {
-  margin-left: 48px;
+  margin-left: 28px;
 }
 .danger {
   color: #f56c6c;
@@ -1171,7 +1329,7 @@ export default {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(400px, 26%) minmax(0, 1fr);
+  grid-template-columns: minmax(360px, 390px) minmax(0, 1fr);
   gap: 0;
   padding: 0;
   height: 100%;
@@ -1222,7 +1380,7 @@ export default {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   border-right: 1px solid #dfe4ee;
-  padding: 0 8px 0 10px;
+  padding: 0 6px 0 8px;
   overflow: hidden;
   background: #fff;
 }
@@ -1232,7 +1390,7 @@ export default {
 }
 .preview-layout .outline-top-fixed {
   width: 100%;
-  max-width: 450px;
+  max-width: none;
   margin: 0 auto;
 }
 .preview-body {
@@ -1243,13 +1401,14 @@ export default {
 }
 .outline-tree {
   width: 100%;
-  max-width: 430px;
+  max-width: none;
   margin: 0 auto;
-  padding: 8px 4px 12px;
+  padding: 6px 2px 10px;
+  font-size: 13px;
 }
 .preview-node {
-  min-height: 28px;
-  line-height: 28px;
+  min-height: 23px;
+  line-height: 23px;
   color: #606266;
 }
 .preview-node.level-1 {
@@ -1257,11 +1416,11 @@ export default {
   color: #303133;
 }
 .preview-node.level-2 {
-  margin-left: 20px;
+  margin-left: 16px;
   font-weight: 500;
 }
 .preview-node.level-3 {
-  margin-left: 40px;
+  margin-left: 32px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1271,9 +1430,9 @@ export default {
   margin-left: auto;
   color: #909399;
   font-style: normal;
-  min-width: 74px;
+  min-width: 64px;
   text-align: right;
-  font-size: 13px;
+  font-size: 12px;
 }
 .preview-title-row {
   display: flex;
@@ -1328,13 +1487,13 @@ export default {
   color: #a8abb2;
 }
 .preview-actions {
-  min-height: 104px;
+  min-height: 86px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 10px 0;
+  gap: 8px;
+  padding: 8px 0;
   background: #fff;
   border-top: 1px solid #e7ebf3;
 }
@@ -1385,9 +1544,66 @@ export default {
   min-width: 0;
   height: 100%;
   min-height: 0;
-  overflow: auto;
-  background: linear-gradient(135deg, #f3f4fb 0%, #eef2ff 100%);
-  padding: 46px 42px 44px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  padding: 0;
+}
+.content-title-stack {
+  flex: 0 0 auto;
+  border-bottom: 1px solid #dfe4ee;
+  background: #fff;
+}
+.content-title-row {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid #edf0f6;
+  color: #111827;
+}
+.content-title-row:last-child {
+  border-bottom: 0;
+}
+.content-title-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+.chapter-title-row {
+  justify-content: flex-end;
+}
+.chapter-title-row strong {
+  max-width: 42%;
+  font-size: 16px;
+}
+.section-title-row {
+  border-left: 4px solid #6b7280;
+}
+.paragraph-title-row {
+  min-height: 38px;
+}
+.title-count {
+  flex: 0 0 auto;
+  color: #8b95a7;
+  font-size: 12px;
+}
+.close-pane-button {
+  margin-left: auto;
+}
+.editor-toolbox {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.editor-toolbox .el-button {
+  padding: 6px;
+  border-color: #d9e1ef;
 }
 .content-pane-head {
   max-width: 900px;
@@ -1419,15 +1635,48 @@ export default {
   font-size: 12px;
 }
 .content-editor-shell {
-  max-width: 900px;
-  min-height: 620px;
-  margin: 0 auto;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   background: #fff;
-  border: 1px solid #e2e7f0;
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   overflow: hidden;
+}
+.content-editor-shell.rich-editor-shell {
+  height: auto;
+  flex: 1;
+}
+.content-editor-shell ::v-deep .rich-content-editor {
+  height: 100%;
+  min-height: 0;
+}
+.content-editor-shell ::v-deep .editor-stage {
+  background: #fff;
+}
+.content-editor-shell ::v-deep .tiptap-host {
+  max-width: none;
+  min-height: 0;
+  border: 0;
+}
+.content-editor-shell ::v-deep .tiptap-host .tiptap-surface {
+  min-height: calc(100vh - 214px);
+  padding: 18px 28px 42px;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.content-editor-shell ::v-deep .tiptap-surface p {
+  margin-bottom: 7px;
+}
+.content-editor-shell ::v-deep .tiptap-surface table {
+  margin: 8px 0 12px;
+}
+.content-editor-shell ::v-deep .tiptap-surface th,
+.content-editor-shell ::v-deep .tiptap-surface td {
+  padding: 6px 8px;
 }
 .rich-editor-toolbar {
   height: 48px;

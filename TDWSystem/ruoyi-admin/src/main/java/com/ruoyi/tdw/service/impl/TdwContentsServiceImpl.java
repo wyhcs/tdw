@@ -1,6 +1,8 @@
 package com.ruoyi.tdw.service.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,17 +14,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.tdw.ai.dto.GenerateContentAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateContentAiResponse;
+import com.ruoyi.tdw.ai.prompt.TdwPromptTemplateService;
 import com.ruoyi.tdw.ai.service.TdwAiService;
 import com.ruoyi.tdw.domain.TdwContents;
 import com.ruoyi.tdw.domain.TdwOutlines;
+import com.ruoyi.tdw.domain.TdwBids;
 import com.ruoyi.tdw.domain.dto.TdwContentGenerateRequest;
+import com.ruoyi.tdw.domain.dto.TdwContentSelectionAiRequest;
+import com.ruoyi.tdw.domain.dto.TdwContentSelectionAiResult;
 import com.ruoyi.tdw.domain.dto.TdwContentSortRequest;
+import com.ruoyi.tdw.domain.dto.TdwRichContentSaveRequest;
+import com.ruoyi.tdw.mapper.TdwBidsMapper;
 import com.ruoyi.tdw.mapper.TdwContentsMapper;
 import com.ruoyi.tdw.mapper.TdwOutlinesMapper;
 import com.ruoyi.tdw.mapper.TdwTenderParseReportMapper;
 import com.ruoyi.tdw.service.ITdwContentsService;
 import com.ruoyi.tdw.service.ITdwKnowledgeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,12 +47,16 @@ public class TdwContentsServiceImpl implements ITdwContentsService
     private static final int CONTENT_TYPE_TEXT = 1;
     private static final int CONTENT_TYPE_TABLE = 2;
     private static final int CONTENT_TYPE_DIAGRAM = 3;
+    private static final String CONTENT_PROMPT_ROOT = "prompts/ai-plan/content/";
 
     @Autowired
     private TdwContentsMapper tdwContentsMapper;
 
     @Autowired
     private TdwOutlinesMapper outlinesMapper;
+
+    @Autowired
+    private TdwBidsMapper bidsMapper;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -56,6 +69,9 @@ public class TdwContentsServiceImpl implements ITdwContentsService
 
     @Autowired
     private TdwTenderParseReportMapper tenderParseReportMapper;
+
+    @Autowired
+    private TdwPromptTemplateService promptTemplateService;
 
     @Override
     public TdwContents selectTdwContentsById(Long id)
@@ -193,6 +209,10 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         String defaultScope = request.getBidId() != null && request.getOutlineId() == null ? "full" : "selected";
         String scope = normalizeOption(request.getScope(), defaultScope);
         String mode = normalizeOption(request.getMode(), "append");
+
+        System.out.println("@@@@@@@@@@");
+        System.out.println(scope);
+        System.out.println(mode);
         if (!"full".equals(scope) && !"selected".equals(scope)) {
             throw new IllegalArgumentException("scope只能是full或selected");
         }
@@ -203,7 +223,7 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         List<TdwOutlines> targetOutlines = resolveTargetOutlines(request, scope);
         List<TdwContents> result = new ArrayList<>();
         for (TdwOutlines outline : targetOutlines) {
-            List<TdwContents> generated = mockGenerateBlocks(outline, request);
+            List<TdwContents> generated = generateBlocks(outline, request);
             if (!"keep".equals(mode)) {
                 if ("overwrite".equals(mode)) {
                     tdwContentsMapper.deleteByOutlineId(outline.getId());
@@ -219,7 +239,104 @@ public class TdwContentsServiceImpl implements ITdwContentsService
             }
             result.addAll(generated);
         }
+        System.out.println(result);
         return result;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TdwContents saveRichContent(TdwRichContentSaveRequest request) throws JsonProcessingException
+    {
+        if (request == null || request.getOutlineId() == null) {
+            throw new IllegalArgumentException("outlineId不能为空");
+        }
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("html", safe(request.getHtml()));
+        root.put("text", safe(request.getText()));
+        Map<String, Object> format = new LinkedHashMap<>();
+        format.put("fontSize", 14);
+        format.put("bold", false);
+        root.put("format", format);
+
+        String contentJson = objectMapper.writeValueAsString(root);
+        List<TdwContents> contents = tdwContentsMapper.selectTdwContentsByOutlineId(request.getOutlineId());
+        TdwContents target = null;
+        for (TdwContents content : contents) {
+            if (content.getContentType() != null && content.getContentType() == CONTENT_TYPE_TEXT) {
+                target = content;
+                break;
+            }
+        }
+        if (target == null) {
+            target = new TdwContents();
+            target.setOutlineId(request.getOutlineId());
+            target.setContentType(CONTENT_TYPE_TEXT);
+            target.setContent(contentJson);
+            target.setSortOrder(1);
+            target.setCreateTime(DateUtils.getNowDate());
+            target.setUpdateTime(DateUtils.getNowDate());
+            tdwContentsMapper.insertTdwContents(target);
+        } else {
+            target.setOutlineId(request.getOutlineId());
+            target.setContentType(CONTENT_TYPE_TEXT);
+            target.setContent(contentJson);
+            target.setSortOrder(1);
+            target.setUpdateTime(DateUtils.getNowDate());
+            tdwContentsMapper.updateTdwContents(target);
+        }
+
+        for (TdwContents content : contents) {
+            if (!content.getId().equals(target.getId())) {
+                tdwContentsMapper.deleteTdwContentsById(content.getId());
+            }
+        }
+        normalizeSortOrder(request.getOutlineId());
+        return tdwContentsMapper.selectTdwContentsById(target.getId());
+    }
+
+    @Override
+    public TdwContentSelectionAiResult handleSelectionAi(TdwContentSelectionAiRequest request) throws JsonProcessingException
+    {
+        if (request == null || request.getSelectedText() == null || request.getSelectedText().trim().length() == 0) {
+            throw new IllegalArgumentException("选中文本不能为空");
+        }
+        String action = normalizeOption(request.getAction(), "rewrite");
+        String selectedText = request.getSelectedText().trim();
+        GenerateContentAiRequest aiRequest = new GenerateContentAiRequest();
+        aiRequest.setBidId(request.getBidId());
+        aiRequest.setOutlineId(request.getOutlineId());
+        aiRequest.setExistingContent(selectedText);
+        aiRequest.setRequirement(request.getRequirement());
+        if (request.getOutlineId() != null) {
+            TdwOutlines outline = outlinesMapper.selectTdwOutlinesById(request.getOutlineId());
+            if (outline != null) {
+                aiRequest.setOutlineTitle(outline.getTitle());
+                aiRequest.setOutlineLevel(outline.getLevel());
+                aiRequest.setWordLimit(outline.getWordLimit());
+            }
+        }
+
+        TdwContentSelectionAiResult result = new TdwContentSelectionAiResult();
+        result.setAction(action);
+        if ("expand".equals(action)) {
+            result.setText(tdwAiService.expandContent(aiRequest));
+            return result;
+        }
+        if ("shorten".equals(action)) {
+            result.setText(tdwAiService.shortenContent(aiRequest));
+            return result;
+        }
+        if ("rewrite".equals(action)) {
+            result.setText(tdwAiService.optimizeContent(aiRequest));
+            return result;
+        }
+        if ("summarytable".equals(action)) {
+            return buildSummaryTableResult(action, selectedText);
+        }
+        if ("summarydiagram".equals(action)) {
+            return buildSummaryDiagramResult(action, selectedText);
+        }
+        throw new IllegalArgumentException("action只能是expand、shorten、rewrite、summaryDiagram、summaryTable");
     }
 
     @Override
@@ -331,27 +448,41 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         return outlinesMapper.selectContentTitleOutlinesByAncestor(request.getOutlineId());
     }
 
-    private List<TdwContents> mockGenerateBlocks(TdwOutlines outline, TdwContentGenerateRequest request) throws JsonProcessingException
+    private List<TdwContents> generateBlocks(TdwOutlines outline, TdwContentGenerateRequest request) throws JsonProcessingException
     {
         List<TdwContents> blocks = new ArrayList<>();
+        TdwBids bid = resolveBid(outline, request);
+        String projectType = bid == null ? "" : safe(bid.getCategory());
+        String projectName = bid == null ? "" : safe(bid.getTitle());
+        String writingStyle = normalizeContentStyleName(request.getWritingStyle(), request.getRequirement());
+        String promptPath = contentPromptPath(projectType, writingStyle);
+        String knowledgeContext = tdwKnowledgeService.buildKnowledgeContext(request.getKnowledgeFileIds(), request.getKnowledgeChunkIds());
+        String tenderParseResult = "";
+        if (request.getTenderParseReportId() != null) {
+            com.ruoyi.tdw.domain.TdwTenderParseReport report = tenderParseReportMapper.selectById(request.getTenderParseReportId());
+            if (report != null) {
+                tenderParseResult = safe(report.getReportContent());
+            }
+        }
+
         GenerateContentAiRequest aiRequest = new GenerateContentAiRequest();
-        aiRequest.setBidId(request.getBidId());
+        aiRequest.setBidId(resolveBidId(outline, request));
         aiRequest.setOutlineId(outline.getId());
         aiRequest.setOutlineTitle(outline.getTitle());
         aiRequest.setOutlineLevel(outline.getLevel());
         aiRequest.setWordLimit(outline.getWordLimit());
+        aiRequest.setProjectName(projectName);
+        aiRequest.setProjectType(projectType);
+        aiRequest.setWritingStyle(writingStyle);
+        aiRequest.setPromptKey(promptPath);
         aiRequest.setRequirement(request.getRequirement());
         aiRequest.setIncludeTable(request.getIncludeTable());
         aiRequest.setIncludeDiagram(request.getIncludeDiagram());
         aiRequest.setKnowledgeFileIds(request.getKnowledgeFileIds());
         aiRequest.setKnowledgeChunkIds(request.getKnowledgeChunkIds());
-        aiRequest.setKnowledgeContext(tdwKnowledgeService.buildKnowledgeContext(request.getKnowledgeFileIds(), request.getKnowledgeChunkIds()));
-        if (request.getTenderParseReportId() != null) {
-            com.ruoyi.tdw.domain.TdwTenderParseReport report = tenderParseReportMapper.selectById(request.getTenderParseReportId());
-            if (report != null) {
-                aiRequest.setTenderParseResult(report.getReportContent());
-            }
-        }
+        aiRequest.setKnowledgeContext(knowledgeContext);
+        aiRequest.setTenderParseResult(tenderParseResult);
+        aiRequest.setFinalPrompt(buildContentPrompt(promptPath, bid, outline, request, writingStyle, tenderParseResult, knowledgeContext));
 
         GenerateContentAiResponse aiResponse = tdwAiService.generateContentBlocks(aiRequest);
         if (aiResponse == null || aiResponse.getBlocks() == null || aiResponse.getBlocks().isEmpty()) {
@@ -364,6 +495,131 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         return blocks;
     }
 
+    private TdwBids resolveBid(TdwOutlines outline, TdwContentGenerateRequest request)
+    {
+        Long bidId = resolveBidId(outline, request);
+        return bidId == null ? null : bidsMapper.selectTdwBidsById(bidId);
+    }
+
+    private Long resolveBidId(TdwOutlines outline, TdwContentGenerateRequest request)
+    {
+        if (request != null && request.getBidId() != null) {
+            return request.getBidId();
+        }
+        return outline == null ? null : outline.getBidId();
+    }
+
+    private String buildContentPrompt(String promptPath, TdwBids bid, TdwOutlines outline,
+                                      TdwContentGenerateRequest request, String writingStyle,
+                                      String tenderParseResult, String knowledgeContext)
+    {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("projectName", bid == null ? "" : safe(bid.getTitle()));
+        variables.put("projectType", bid == null ? "" : safe(bid.getCategory()));
+        variables.put("writingStyle", safe(writingStyle));
+        variables.put("outlineTitle", outline == null ? "" : safe(outline.getTitle()));
+        variables.put("outlineRequirement", buildOutlineRequirementText(outline));
+        variables.put("wordLimit", outline == null ? "" : String.valueOf(outline.getWordLimit()));
+        variables.put("requirement", request == null ? "" : safe(request.getRequirement()));
+        variables.put("tenderParseResult", safe(tenderParseResult));
+        variables.put("knowledgeContext", safe(knowledgeContext));
+        variables.put("includeTable", request != null && Boolean.TRUE.equals(request.getIncludeTable()) ? "是" : "否");
+        variables.put("includeDiagram", request != null && Boolean.TRUE.equals(request.getIncludeDiagram()) ? "是" : "否");
+        return promptTemplateService.render(promptPath, variables);
+    }
+
+    private String buildOutlineRequirementText(TdwOutlines outline)
+    {
+        if (outline == null) {
+            return "";
+        }
+        List<String> parts = new ArrayList<>();
+        addIfNotBlank(parts, outline.getRequirementDesc());
+        addIfNotBlank(parts, outline.getWritingDirection());
+        addIfNotBlank(parts, outline.getWritingRequirement());
+        return String.join("\n", parts);
+    }
+
+    private void addIfNotBlank(List<String> parts, String value)
+    {
+        if (value != null && value.trim().length() > 0) {
+            parts.add(value.trim());
+        }
+    }
+
+    private String contentPromptPath(String projectType, String writingStyle)
+    {
+        String categoryKey = normalizeProjectTypeKey(projectType);
+        String styleKey = normalizeContentStyleKey(writingStyle);
+        String path = CONTENT_PROMPT_ROOT + categoryKey + "/" + styleKey + ".md";
+        if (resourceExists(path)) {
+            return path;
+        }
+        String fallbackStylePath = CONTENT_PROMPT_ROOT + "other/" + styleKey + ".md";
+        if (resourceExists(fallbackStylePath)) {
+            return fallbackStylePath;
+        }
+        return CONTENT_PROMPT_ROOT + "other/general.md";
+    }
+
+    private boolean resourceExists(String path)
+    {
+        return new ClassPathResource(path).exists();
+    }
+
+    private String normalizeProjectTypeKey(String projectType)
+    {
+        String value = safe(projectType).trim().toLowerCase();
+        if (value.contains("服务")) {
+            return "service";
+        }
+        if (value.contains("货物") || value.contains("采购") || value.contains("商品")) {
+            return "goods";
+        }
+        if (value.contains("工程") || value.contains("施工") || value.contains("建设")) {
+            return "engineering";
+        }
+        if (value.contains("监理")) {
+            return "supervision";
+        }
+        if (value.contains("it") || value.contains("软件") || value.contains("信息") || value.contains("系统")
+                || value.contains("平台") || value.contains("数字化")) {
+            return "it";
+        }
+        return "other";
+    }
+
+    private String normalizeContentStyleName(String writingStyle, String requirement)
+    {
+        String value = writingStyle == null || writingStyle.trim().length() == 0 ? requirement : writingStyle;
+        String key = normalizeContentStyleKey(value);
+        if ("data".equals(key)) {
+            return "数据型";
+        }
+        if ("concise".equals(key)) {
+            return "简练型";
+        }
+        if ("practical".equals(key)) {
+            return "实用型";
+        }
+        return "通用型";
+    }
+
+    private String normalizeContentStyleKey(String writingStyle)
+    {
+        String value = safe(writingStyle).trim().toLowerCase();
+        if (value.contains("data") || value.contains("数据")) {
+            return "data";
+        }
+        if (value.contains("concise") || value.contains("简练") || value.contains("简洁") || value.contains("简约")) {
+            return "concise";
+        }
+        if (value.contains("practical") || value.contains("实用")) {
+            return "practical";
+        }
+        return "general";
+    }
+
     private TdwContents buildContent(Long outlineId, Integer contentType, String content)
     {
         TdwContents tdwContents = new TdwContents();
@@ -371,6 +627,106 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         tdwContents.setContentType(contentType);
         tdwContents.setContent(content);
         return tdwContents;
+    }
+
+    private TdwContentSelectionAiResult buildSummaryTableResult(String action, String selectedText)
+    {
+        TdwContentSelectionAiResult result = new TdwContentSelectionAiResult();
+        result.setAction(action);
+        result.setTitle("局部内容总结表");
+        List<String> headers = Arrays.asList("归纳维度", "关键内容", "标书响应建议");
+        List<List<String>> rows = new ArrayList<>();
+        List<String> sentences = splitSentences(selectedText, 3);
+        if (sentences.isEmpty()) {
+            sentences.add(selectedText);
+        }
+        for (int i = 0; i < Math.min(3, sentences.size()); i++) {
+            rows.add(Arrays.asList("要点" + (i + 1), sentences.get(i), "保持与招标需求一致，补充可执行措施与验收依据"));
+        }
+        result.setHeaders(headers);
+        result.setRows(rows);
+        result.setText("已将选中内容整理为" + rows.size() + "行总结表。");
+        result.setHtml(buildTableHtml(headers, rows));
+        return result;
+    }
+
+    private TdwContentSelectionAiResult buildSummaryDiagramResult(String action, String selectedText)
+    {
+        TdwContentSelectionAiResult result = new TdwContentSelectionAiResult();
+        result.setAction(action);
+        result.setTitle(buildSummaryTitle(selectedText));
+        result.setDescription("根据选中内容自动归纳的结构图，可在前端点击图片右上角进行编辑。");
+        List<String> keywords = splitSentences(selectedText, 4);
+        while (keywords.size() < 4) {
+            keywords.add("响应要点" + (keywords.size() + 1));
+        }
+        result.setKeywords(keywords);
+        result.setText("已生成智能总结图。");
+        return result;
+    }
+
+    private String buildTableHtml(List<String> headers, List<List<String>> rows)
+    {
+        StringBuilder html = new StringBuilder();
+        html.append("<table>");
+        html.append("<thead><tr>");
+        for (String header : headers) {
+            html.append("<th>").append(escapeHtml(header)).append("</th>");
+        }
+        html.append("</tr></thead><tbody>");
+        for (List<String> row : rows) {
+            html.append("<tr>");
+            for (String cell : row) {
+                html.append("<td>").append(escapeHtml(cell)).append("</td>");
+            }
+            html.append("</tr>");
+        }
+        html.append("</tbody></table>");
+        return html.toString();
+    }
+
+    private List<String> splitSentences(String text, int limit)
+    {
+        List<String> result = new ArrayList<>();
+        if (text == null) {
+            return result;
+        }
+        String[] sentences = text.replace("\r", "\n").split("[。；;\\n]+");
+        for (String sentence : sentences) {
+            String value = sentence == null ? "" : sentence.trim();
+            if (value.length() == 0) {
+                continue;
+            }
+            result.add(value.length() > 80 ? value.substring(0, 80) : value);
+            if (result.size() >= limit) {
+                break;
+            }
+        }
+        return result;
+    }
+
+    private String buildSummaryTitle(String selectedText)
+    {
+        List<String> sentences = splitSentences(selectedText, 1);
+        if (sentences.isEmpty()) {
+            return "智能总结图";
+        }
+        String title = sentences.get(0);
+        return title.length() > 18 ? title.substring(0, 18) + "..." : title;
+    }
+
+    private String escapeHtml(String value)
+    {
+        return safe(value).replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
+    }
+
+    private String safe(String value)
+    {
+        return value == null ? "" : value;
     }
 
     private String buildTextJson(TdwOutlines outline, TdwContentGenerateRequest request) throws JsonProcessingException

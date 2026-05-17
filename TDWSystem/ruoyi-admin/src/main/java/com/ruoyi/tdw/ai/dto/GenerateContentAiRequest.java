@@ -17,6 +17,16 @@ public class GenerateContentAiRequest
 
     private Integer wordLimit;
 
+    private String projectName;
+
+    private String projectType;
+
+    private String writingStyle;
+
+    private String promptKey;
+
+    private String finalPrompt;
+
     private String requirement;
 
     private Boolean includeTable;
@@ -85,6 +95,56 @@ public class GenerateContentAiRequest
     public void setWordLimit(Integer wordLimit)
     {
         this.wordLimit = wordLimit;
+    }
+
+    public String getProjectName()
+    {
+        return projectName;
+    }
+
+    public void setProjectName(String projectName)
+    {
+        this.projectName = projectName;
+    }
+
+    public String getProjectType()
+    {
+        return projectType;
+    }
+
+    public void setProjectType(String projectType)
+    {
+        this.projectType = projectType;
+    }
+
+    public String getWritingStyle()
+    {
+        return writingStyle;
+    }
+
+    public void setWritingStyle(String writingStyle)
+    {
+        this.writingStyle = writingStyle;
+    }
+
+    public String getPromptKey()
+    {
+        return promptKey;
+    }
+
+    public void setPromptKey(String promptKey)
+    {
+        this.promptKey = promptKey;
+    }
+
+    public String getFinalPrompt()
+    {
+        return finalPrompt;
+    }
+
+    public void setFinalPrompt(String finalPrompt)
+    {
+        this.finalPrompt = finalPrompt;
     }
 
     public String getRequirement()
@@ -163,4 +223,31 @@ public class GenerateContentAiRequest
     public void setKnowledgeChunkIds(List<Long> knowledgeChunkIds) { this.knowledgeChunkIds = knowledgeChunkIds; }
     public String getKnowledgeContext() { return knowledgeContext; }
     public void setKnowledgeContext(String knowledgeContext) { this.knowledgeContext = knowledgeContext; }
+
+
+    @Override
+    public String toString() {
+        return "GenerateContentAiRequest{" +
+                "bidId=" + bidId +
+                ", outlineId=" + outlineId +
+                ", outlineTitle='" + outlineTitle + '\'' +
+                ", outlineLevel=" + outlineLevel +
+                ", wordLimit=" + wordLimit +
+                ", projectName='" + projectName + '\'' +
+                ", projectType='" + projectType + '\'' +
+                ", writingStyle='" + writingStyle + '\'' +
+                ", promptKey='" + promptKey + '\'' +
+                ", finalPrompt='" + finalPrompt + '\'' +
+                ", requirement='" + requirement + '\'' +
+                ", includeTable=" + includeTable +
+                ", includeDiagram=" + includeDiagram +
+                ", existingContent='" + existingContent + '\'' +
+                ", tenderParseResult='" + tenderParseResult + '\'' +
+                ", qualityItem='" + qualityItem + '\'' +
+                ", knowledgeFileIds=" + knowledgeFileIds +
+                ", knowledgeChunkIds=" + knowledgeChunkIds +
+                ", knowledgeContext='" + knowledgeContext + '\'' +
+                ", messages=" + messages +
+                '}';
+    }
 }

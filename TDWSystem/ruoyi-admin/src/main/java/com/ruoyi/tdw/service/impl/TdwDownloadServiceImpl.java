@@ -42,16 +42,18 @@ public class TdwDownloadServiceImpl implements ITdwDownloadService
     public TdwDownloadRecord recordGeneratedFile(String sourceModule, Long sourceId, String fileName, String fileType, String fileUrl, Long fileSize, String remark)
     {
         TdwDownloadRecord record = new TdwDownloadRecord();
-        record.setSourceModule(sourceModule);
-        record.setSourceId(sourceId);
-        record.setFileName(fileName);
-        record.setFileType(fileType);
+        record.setModuleType(sourceModule);
+        record.setBizId(sourceId);
+        record.setDownloadName(fileName);
+        record.setDownloadType(StringUtils.defaultIfBlank(sourceModule, "common") + "_export");
+        record.setFileFormat(fileType);
+        record.setGenerateStatus("success");
         record.setFileUrl(fileUrl);
         record.setFileSize(fileSize == null ? 0L : fileSize);
         record.setDownloadCount(0);
         record.setCreateTime(DateUtils.getNowDate());
         record.setUpdateTime(DateUtils.getNowDate());
-        record.setRemark(remark);
+        record.setRemark(buildRemark(remark, fileUrl));
         record.setDelFlag("0");
         downloadRecordMapper.insertDownloadRecord(record);
         return record;
@@ -90,7 +92,7 @@ public class TdwDownloadServiceImpl implements ITdwDownloadService
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "下载记录不存在");
             return;
         }
-        File file = resolveFile(record.getFileUrl());
+        File file = resolveFile(resolveFileUrl(record));
         if (file == null || !file.exists() || !file.isFile()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "文件不存在");
             return;
@@ -126,6 +128,55 @@ public class TdwDownloadServiceImpl implements ITdwDownloadService
             return new File(RuoYiConfig.getProfile(), normalized.substring(1));
         }
         return new File(RuoYiConfig.getProfile(), normalized);
+    }
+
+    private String resolveFileUrl(TdwDownloadRecord record)
+    {
+        if (record == null) {
+            return null;
+        }
+        if (StringUtils.isNotBlank(record.getFileUrl())) {
+            return record.getFileUrl();
+        }
+        String remarkUrl = extractRemarkFileUrl(record.getRemark());
+        if (StringUtils.isNotBlank(remarkUrl)) {
+            return remarkUrl;
+        }
+        if (StringUtils.isNotBlank(record.getDownloadName())) {
+            return Constants.RESOURCE_PREFIX + "/download/bid/" + record.getDownloadName();
+        }
+        return null;
+    }
+
+    private String buildRemark(String remark, String fileUrl)
+    {
+        String cleanRemark = StringUtils.defaultString(remark);
+        if (StringUtils.isBlank(fileUrl)) {
+            return cleanRemark;
+        }
+        String fileUrlPart = "fileUrl=" + fileUrl;
+        if (StringUtils.isBlank(cleanRemark)) {
+            return fileUrlPart;
+        }
+        return fileUrlPart + "\n" + cleanRemark;
+    }
+
+    private String extractRemarkFileUrl(String remark)
+    {
+        if (StringUtils.isBlank(remark)) {
+            return null;
+        }
+        String marker = "fileUrl=";
+        int index = remark.indexOf(marker);
+        if (index < 0) {
+            return null;
+        }
+        String value = remark.substring(index + marker.length());
+        int lineBreak = value.indexOf('\n');
+        if (lineBreak >= 0) {
+            value = value.substring(0, lineBreak);
+        }
+        return value.trim();
     }
 
     private String buildReportHtml(String sourceModule, Long sourceId)
