@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="6690d03a-6451-441e-b748-b34a98a42cac" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/ai/provider/MockAiProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/ai/provider/MockAiProvider.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/controller/TdwContentsController.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/controller/TdwContentsController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/controller/TdwKnowledgeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/controller/TdwKnowledgeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/controller/TdwTenderController.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/controller/TdwTenderController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/controller/TdwToolController.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/controller/TdwToolController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/domain/TdwGalleryImage.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/domain/TdwGalleryImage.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/domain/TdwOutlines.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/domain/TdwOutlines.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/domain/TdwTenderFile.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/domain/TdwTenderFile.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/mapper/TdwContentsMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/mapper/TdwContentsMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/mapper/TdwOutlinesMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/mapper/TdwOutlinesMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/ITdwContentsService.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/ITdwContentsService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/ITdwTenderService.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/ITdwTenderService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/ITdwToolService.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/ITdwToolService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/impl/TdwContentsServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/impl/TdwContentsServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/impl/TdwTenderServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/impl/TdwTenderServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/impl/TdwToolServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/service/impl/TdwToolServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/utils/FileParser.java" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/java/com/ruoyi/tdw/utils/FileParser.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/resources/mapper/tdw/TdwContentsMapper.xml" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/resources/mapper/tdw/TdwContentsMapper.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/resources/mapper/tdw/TdwGalleryImageMapper.xml" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/resources/mapper/tdw/TdwGalleryImageMapper.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/resources/mapper/tdw/TdwOutlinesMapper.xml" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/resources/mapper/tdw/TdwOutlinesMapper.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/resources/mapper/tdw/TdwTenderFileMapper.xml" beforeDir="false" afterPath="$PROJECT_DIR$/TDWSystem/ruoyi-admin/src/main/resources/mapper/tdw/TdwTenderFileMapper.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/.env.development" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/.env.development" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/.env.production" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/.env.production" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/.env.staging" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/.env.staging" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/api/bid/bids.js" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/api/bid/bids.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/api/bid/contents.js" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/api/bid/contents.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/api/bid/knowledge.js" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/api/bid/knowledge.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/router/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/router/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/knowledge/detail.vue" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/knowledge/detail.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/knowledge/index.vue" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/knowledge/index.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/plan/create.vue" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/plan/create.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/plan/editor.vue" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/plan/editor.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/plan/index.vue" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/src/views/bid/plan/index.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ruoyi-ui/vue.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/ruoyi-ui/vue.config.js" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="3DhApMbXIopysXC7g6O5tEU43LR" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="6690d03a-6451-441e-b748-b34a98a42cac" name="Changes" comment="" />
+      <created>1778724109648</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1778724109648</updated>
+      <workItem from="1778724110760" duration="5000" />
+    </task>
+    <servers />
+  </component>
+</project>

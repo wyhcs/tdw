@@ -21,6 +21,7 @@ import com.ruoyi.tdw.mapper.TdwContentsMapper;
 import com.ruoyi.tdw.service.ITdwDownloadService;
 import com.ruoyi.tdw.service.ITdwOutlinesService;
 import com.ruoyi.tdw.service.ITdwPlanExportService;
+import com.ruoyi.tdw.utils.HtmlToWordConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -76,21 +77,36 @@ public class TdwPlanExportServiceImpl implements ITdwPlanExportService
             exportTitle += "_" + targetOutline.getTitle();
         }
         String safeTitle = safeFileName(exportTitle);
-        String fileName = safeTitle + "_" + request.getBidId() + "_" + System.currentTimeMillis() + ".html";
+        String fileFormat = normalizeExportFormat(request.getFileFormat());
+        String baseFileName = safeTitle + "_" + request.getBidId() + "_" + System.currentTimeMillis();
+        String fileName = baseFileName + ("docx".equals(fileFormat) ? ".docx" : ".html");
         File dir = new File(RuoYiConfig.getProfile() + File.separator + "download" + File.separator + "bid");
         if (!dir.exists()) {
             dir.mkdirs();
         }
         File file = new File(dir, fileName);
-        Files.write(file.toPath(), html.getBytes(StandardCharsets.UTF_8));
+        if ("docx".equals(fileFormat)) {
+            HtmlToWordConverter.convertHtmlToWord(html, file.getAbsolutePath(), null);
+        } else {
+            Files.write(file.toPath(), html.getBytes(StandardCharsets.UTF_8));
+        }
 
         TdwPlanExportResult result = new TdwPlanExportResult();
         result.setFileName("bid/" + fileName);
         result.setFileUrl(Constants.RESOURCE_PREFIX + "/download/bid/" + fileName);
         result.setDownloadName(fileName);
-        result.setFileFormat("html");
-        downloadService.recordGeneratedFile("plan", request.getBidId(), fileName, "html", result.getFileUrl(), file.length(), targetOutline == null ? "AI方案HTML导出" : "AI方案本节HTML导出");
+        result.setFileFormat(fileFormat);
+        downloadService.recordGeneratedFile("plan", request.getBidId(), fileName, fileFormat, result.getFileUrl(), file.length(), targetOutline == null ? "AI方案" + fileFormat.toUpperCase() + "导出" : "AI方案本节" + fileFormat.toUpperCase() + "导出");
         return result;
+    }
+
+    private String normalizeExportFormat(String fileFormat)
+    {
+        String value = fileFormat == null ? "" : fileFormat.trim().toLowerCase();
+        if ("docx".equals(value) || "doc".equals(value) || "word".equals(value)) {
+            return "docx";
+        }
+        return "html";
     }
 
     private TdwOutlines findOutlineById(List<TdwOutlines> outlines, Long outlineId)

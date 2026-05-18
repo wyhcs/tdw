@@ -69,17 +69,48 @@ public class TdwContentsController extends BaseController
     @PostMapping(value ="/generate/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter generateStream(@RequestBody TdwContentGenerateRequest request) {
         SseEmitter emitter = new SseEmitter(0L);
+        java.util.concurrent.atomic.AtomicLong lastEventAt = new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis());
         contentGenerateExecutor.execute(() -> {
             ScheduledFuture<?> heartbeat = contentHeartbeatExecutor.scheduleAtFixedRate(() -> {
                 try {
-                    sendEvent(emitter, "heartbeat", "generating");
+                    long now = System.currentTimeMillis();
+                    if (now - lastEventAt.get() >= 30000L) {
+                        sendEvent(emitter, "heartbeat", "generating");
+                        lastEventAt.set(now);
+                    }
                 } catch (IOException ignored) {
                 }
-            }, 10L, 10L, TimeUnit.SECONDS);
+            }, 30L, 30L, TimeUnit.SECONDS);
             try {
                 sendEvent(emitter, "started", "正文生成中");
-                List<TdwContents> contents = tdwContentsService.generateContentBlocks(request);
+                lastEventAt.set(System.currentTimeMillis());
+                List<TdwContents> contents = tdwContentsService.generateContentBlocks(request, generated -> {
+                    try {
+                        sendEvent(emitter, "generated", generated);
+                        lastEventAt.set(System.currentTimeMillis());
+                    } catch (IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                }, (outlineId, content) -> {
+                    try {
+                        java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+                        payload.put("outlineId", outlineId);
+                        payload.put("content", content);
+                        sendEvent(emitter, "content", payload);
+                        lastEventAt.set(System.currentTimeMillis());
+                    } catch (IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                }, status -> {
+                    try {
+                        sendEvent(emitter, "ai", status);
+                        lastEventAt.set(System.currentTimeMillis());
+                    } catch (IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                });
                 sendEvent(emitter, "done", contents);
+                lastEventAt.set(System.currentTimeMillis());
                 emitter.complete();
             } catch (Exception e) {
                 completeWithError(emitter, e);

@@ -51,6 +51,10 @@ public class HtmlToWordConverter {
             }
         }
 
+        if (StringUtils.isBlank(outputPdf)) {
+            return;
+        }
+
         try {
             // 加载Word文档
             com.aspose.words.Document pdfSave = new com.aspose.words.Document(new FileInputStream(outputDocx));

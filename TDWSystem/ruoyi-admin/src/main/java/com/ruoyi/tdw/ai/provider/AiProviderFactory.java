@@ -16,7 +16,7 @@ public class AiProviderFactory
 {
     private final Map<String, AiProvider> providers = new HashMap<String, AiProvider>();
 
-    @Value("${tdw.ai.provider:mock}")
+    @Value("${tdw.ai.provider:glm}")
     private String providerName;
 
     @Autowired
@@ -31,10 +31,7 @@ public class AiProviderFactory
     {
         AiProvider provider = providers.get(providerName);
         if (provider == null) {
-            provider = providers.get("mock");
-        }
-        if (provider == null) {
-            throw new IllegalStateException("No AI provider available");
+            throw new IllegalStateException("AI provider unavailable: " + providerName);
         }
         return provider;
     }

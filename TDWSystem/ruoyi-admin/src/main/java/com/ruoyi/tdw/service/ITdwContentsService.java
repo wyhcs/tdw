@@ -1,6 +1,9 @@
 package com.ruoyi.tdw.service;
 
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ruoyi.tdw.domain.TdwContents;
@@ -73,6 +76,12 @@ public interface ITdwContentsService
     public int sortContents(TdwContentSortRequest request);
 
     public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request) throws JsonProcessingException;
+
+    public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request, Consumer<List<TdwContents>> generatedConsumer) throws JsonProcessingException;
+
+    public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request, Consumer<List<TdwContents>> generatedConsumer, BiConsumer<Long, String> contentTextConsumer) throws JsonProcessingException;
+
+    public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request, Consumer<List<TdwContents>> generatedConsumer, BiConsumer<Long, String> contentTextConsumer, Consumer<Map<String, Object>> streamStatusConsumer) throws JsonProcessingException;
 
     public TdwContents saveRichContent(TdwRichContentSaveRequest request) throws JsonProcessingException;
 

@@ -8,6 +8,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -203,6 +205,27 @@ public class TdwContentsServiceImpl implements ITdwContentsService
     @Transactional(rollbackFor = Exception.class)
     public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request) throws JsonProcessingException
     {
+        return generateContentBlocks(request, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request, Consumer<List<TdwContents>> generatedConsumer) throws JsonProcessingException
+    {
+        return generateContentBlocks(request, generatedConsumer, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request, Consumer<List<TdwContents>> generatedConsumer, BiConsumer<Long, String> contentTextConsumer) throws JsonProcessingException
+    {
+        return generateContentBlocks(request, generatedConsumer, contentTextConsumer, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<TdwContents> generateContentBlocks(TdwContentGenerateRequest request, Consumer<List<TdwContents>> generatedConsumer, BiConsumer<Long, String> contentTextConsumer, Consumer<Map<String, Object>> streamStatusConsumer) throws JsonProcessingException
+    {
         if (request == null) {
             throw new IllegalArgumentException("生成参数不能为空");
         }
@@ -210,9 +233,6 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         String scope = normalizeOption(request.getScope(), defaultScope);
         String mode = normalizeOption(request.getMode(), "append");
 
-        System.out.println("@@@@@@@@@@");
-        System.out.println(scope);
-        System.out.println(mode);
         if (!"full".equals(scope) && !"selected".equals(scope)) {
             throw new IllegalArgumentException("scope只能是full或selected");
         }
@@ -223,7 +243,7 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         List<TdwOutlines> targetOutlines = resolveTargetOutlines(request, scope);
         List<TdwContents> result = new ArrayList<>();
         for (TdwOutlines outline : targetOutlines) {
-            List<TdwContents> generated = generateBlocks(outline, request);
+            List<TdwContents> generated = generateBlocks(outline, request, contentTextConsumer == null ? null : chunk -> contentTextConsumer.accept(outline.getId(), chunk), streamStatusConsumer);
             if (!"keep".equals(mode)) {
                 if ("overwrite".equals(mode)) {
                     tdwContentsMapper.deleteByOutlineId(outline.getId());
@@ -238,8 +258,10 @@ public class TdwContentsServiceImpl implements ITdwContentsService
                 }
             }
             result.addAll(generated);
+            if (generatedConsumer != null && !generated.isEmpty()) {
+                generatedConsumer.accept(generated);
+            }
         }
-        System.out.println(result);
         return result;
     }
 
@@ -448,7 +470,7 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         return outlinesMapper.selectContentTitleOutlinesByAncestor(request.getOutlineId());
     }
 
-    private List<TdwContents> generateBlocks(TdwOutlines outline, TdwContentGenerateRequest request) throws JsonProcessingException
+    private List<TdwContents> generateBlocks(TdwOutlines outline, TdwContentGenerateRequest request, Consumer<String> contentTextConsumer, Consumer<Map<String, Object>> streamStatusConsumer) throws JsonProcessingException
     {
         List<TdwContents> blocks = new ArrayList<>();
         TdwBids bid = resolveBid(outline, request);
@@ -484,7 +506,7 @@ public class TdwContentsServiceImpl implements ITdwContentsService
         aiRequest.setTenderParseResult(tenderParseResult);
         aiRequest.setFinalPrompt(buildContentPrompt(promptPath, bid, outline, request, writingStyle, tenderParseResult, knowledgeContext));
 
-        GenerateContentAiResponse aiResponse = tdwAiService.generateContentBlocks(aiRequest);
+        GenerateContentAiResponse aiResponse = tdwAiService.generateContentBlocks(aiRequest, contentTextConsumer, streamStatusConsumer);
         if (aiResponse == null || aiResponse.getBlocks() == null || aiResponse.getBlocks().isEmpty()) {
             return blocks;
         }

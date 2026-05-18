@@ -941,6 +941,10 @@ export default {
       this.generateDialogVisible = false
       this.generatingContent = true
       finalizePlanOutline(this.bidId).then(() => {
+        this.resetRichEditorDirty()
+        this.flattenLeaves(this.tree).forEach(leaf => {
+          this.$set(this.contentMap, leaf.id, [])
+        })
         return generateContentBlocks({
           bidId: this.bidId,
           scope: 'full',
@@ -951,6 +955,9 @@ export default {
           includeDiagram: this.generateSettings.chartCount !== 'none' || this.generateSettings.autoImage !== 'none',
           knowledgeFileIds: [],
           knowledgeChunkIds: []
+        }, {
+          onContent: payload => this.appendGeneratedContentChunk(payload),
+          onGenerated: contents => this.applyGeneratedContents(contents)
         })
       }).then(() => {
         return this.loadOverview()
@@ -971,6 +978,9 @@ export default {
     regenerateContentNode(node) {
       if (!node || this.rewritingNodeId) return
       this.rewritingNodeId = node.id
+      const active = this.findTreeNode(this.tree, node.id) || node
+      this.selectedContentNode = active
+      this.clearNodeContentMap(active)
       generateContentBlocks({
         bidId: this.bidId,
         outlineId: node.id,
@@ -982,6 +992,9 @@ export default {
         includeDiagram: false,
         knowledgeFileIds: [],
         knowledgeChunkIds: []
+      }, {
+        onContent: payload => this.appendGeneratedContentChunk(payload),
+        onGenerated: contents => this.applyGeneratedContents(contents)
       }).then(() => {
         this.$modal.msgSuccess('重编完成')
         return this.loadOverview()
@@ -999,7 +1012,7 @@ export default {
       exportPlanHtml({
         bidId: this.bidId,
         outlineId: node.id,
-        fileFormat: 'html',
+        fileFormat: 'docx',
         includeEmptyOutline: true
       }).then(res => {
         this.exportResult = res.data || {}
@@ -1007,6 +1020,57 @@ export default {
       }).finally(() => {
         this.exportingNodeId = undefined
       })
+    },
+    resetRichEditorDirty() {
+      const editor = this.$refs.contentRichEditor
+      if (editor) {
+        editor.dirty = false
+      }
+    },
+    clearNodeContentMap(node) {
+      if (!node) return
+      const targets = [node]
+      this.flattenLeaves([node]).forEach(leaf => {
+        if (!targets.some(item => String(item.id) === String(leaf.id))) {
+          targets.push(leaf)
+        }
+      })
+      this.resetRichEditorDirty()
+      targets.forEach(item => {
+        this.$set(this.contentMap, item.id, [])
+      })
+    },
+    applyGeneratedContents(contents) {
+      const grouped = this.groupContentsByOutline(contents || [])
+      this.resetRichEditorDirty()
+      Object.keys(grouped).forEach(outlineId => {
+        this.$set(this.contentMap, outlineId, grouped[outlineId] || [])
+      })
+    },
+    appendGeneratedContentChunk(payload) {
+      const outlineId = payload && payload.outlineId
+      const chunk = payload && payload.content
+      if (!outlineId || chunk == null || chunk === '') return
+      const key = String(outlineId)
+      const current = this.contentMap[key] || this.contentMap[outlineId] || []
+      const streamId = 'stream-' + key
+      const index = current.findIndex(item => String(item.id) === streamId)
+      const target = index >= 0 ? current[index] : {
+        id: streamId,
+        outlineId,
+        contentType: 1,
+        sortOrder: 1,
+        content: JSON.stringify({ text: '' })
+      }
+      const data = this.parseContent(target)
+      data.text = (data.text || '') + String(chunk)
+      target.content = JSON.stringify(data)
+      const next = index >= 0 ? current.slice() : current.concat(target)
+      if (index >= 0) {
+        next.splice(index, 1, target)
+      }
+      this.resetRichEditorDirty()
+      this.$set(this.contentMap, outlineId, next)
     },
     runEditorTool(action) {
       const editor = this.$refs.contentRichEditor

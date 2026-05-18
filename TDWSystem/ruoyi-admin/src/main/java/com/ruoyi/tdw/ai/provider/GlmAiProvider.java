@@ -43,13 +43,12 @@ public class GlmAiProvider implements AiProvider
 
     private static final Pattern JSON_TITLE_PATTERN = Pattern.compile("\"level\"\\s*:\\s*(\\d+)\\s*,\\s*\"title\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
 
+    private static final Pattern CONTENT_TEXT_START_PATTERN = Pattern.compile("\"text\"\\s*:\\s*\"");
+
     private static final Pattern MARKDOWN_HEADING_PATTERN = Pattern.compile("^(#{1,6})\\s+(.+)$");
 
     @Autowired
     private ObjectMapper objectMapper;
-
-    @Autowired
-    private MockAiProvider mockAiProvider;
 
     @Value("${tdw.ai.glm.api-url:https://llmapi.paratera.com/v1/chat/completions}")
     private String apiUrl;
@@ -104,17 +103,34 @@ public class GlmAiProvider implements AiProvider
     @Override
     public GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request)
     {
+        return generateContentBlocks(request, null);
+    }
+
+    @Override
+    public GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request, Consumer<String> contentTextConsumer)
+    {
+        return generateContentBlocks(request, contentTextConsumer, null);
+    }
+
+    @Override
+    public GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request, Consumer<String> contentTextConsumer, Consumer<Map<String, Object>> streamStatusConsumer)
+    {
         String prompt = request == null ? "" : StringUtils.defaultIfBlank(request.getFinalPrompt(), request.getRequirement());
         if (StringUtils.isBlank(prompt)) {
-            return mockAiProvider.generateContentBlocks(request);
+            throw new IllegalArgumentException("content generation prompt is blank");
         }
         try {
-            String answer = callChatCompletion(prompt);
+            ContentTextStreamAdapter adapter = contentTextConsumer == null ? null : new ContentTextStreamAdapter(contentTextConsumer);
+            String answer = callChatCompletion(prompt, adapter == null ? null : adapter::accept, streamStatusConsumer);
+            if (adapter != null) {
+                adapter.flush();
+            }
             return parseContentResponse(answer);
         } catch (RuntimeException e) {
-            log.warn("正文生成大模型调用失败，使用 mock provider 兜底。promptKey={}",
+            log.warn("正文生成大模型调用失败，mock 兜底已禁用。promptKey={}",
                     request == null ? "" : request.getPromptKey(), e);
-            return mockAiProvider.generateContentBlocks(request);
+            emitStreamStatus(streamStatusConsumer, "error", "message", e.getMessage());
+            throw e;
         }
     }
 
@@ -154,37 +170,37 @@ public class GlmAiProvider implements AiProvider
     @Override
     public String optimizeContent(GenerateContentAiRequest request)
     {
-        return mockAiProvider.optimizeContent(request);
+        return callChatCompletion(buildContentOperationPrompt(request, "请在保留核心含义的基础上改写并润色以下内容，直接输出改写后的正文："));
     }
 
     @Override
     public String expandContent(GenerateContentAiRequest request)
     {
-        return mockAiProvider.expandContent(request);
+        return callChatCompletion(buildContentOperationPrompt(request, "请扩写以下内容，使表达更完整、论述更充分，直接输出扩写后的正文："));
     }
 
     @Override
     public String shortenContent(GenerateContentAiRequest request)
     {
-        return mockAiProvider.shortenContent(request);
+        return callChatCompletion(buildContentOperationPrompt(request, "请压缩以下内容，保留关键信息，直接输出精简后的正文："));
     }
 
     @Override
     public String generateTenderResponse(GenerateContentAiRequest request)
     {
-        return mockAiProvider.generateTenderResponse(request);
+        return callChatCompletion(buildContentOperationPrompt(request, "请根据以下要求生成投标响应内容，直接输出正文："));
     }
 
     @Override
     public String checkQuality(GenerateContentAiRequest request)
     {
-        return mockAiProvider.checkQuality(request);
+        return callChatCompletion(buildContentOperationPrompt(request, "请检查以下标书内容的质量问题，并给出简洁的修改建议："));
     }
 
     @Override
     public String buildDuplicateText(GenerateContentAiRequest request) throws JsonProcessingException
     {
-        return mockAiProvider.buildDuplicateText(request);
+        return callChatCompletion(buildContentOperationPrompt(request, "请整理以下内容用于查重比对，直接输出整理后的文本："));
     }
 
     @Override
@@ -200,6 +216,11 @@ public class GlmAiProvider implements AiProvider
 
     private String callChatCompletion(String prompt, Consumer<String> onContent)
     {
+        return callChatCompletion(prompt, onContent, null);
+    }
+
+    private String callChatCompletion(String prompt, Consumer<String> onContent, Consumer<Map<String, Object>> streamStatusConsumer)
+    {
         if (StringUtils.isBlank(apiKey)) {
             throw new IllegalStateException("大模型API Key未配置，请设置 TDW_GLM_API_KEY 或 tdw.ai.glm.api-key");
         }
@@ -209,7 +230,9 @@ public class GlmAiProvider implements AiProvider
 
         List<Message> messages = new ArrayList<Message>();
         messages.add(new Message("user", prompt));
-        CompletionRequest completionRequest = new CompletionRequest(model, messages, stream, enableThinking);
+        boolean requestStream = stream || onContent != null;
+        CompletionRequest completionRequest = new CompletionRequest(model, messages, requestStream, enableThinking);
+        emitStreamStatus(streamStatusConsumer, "request", "provider", "glm", "model", model, "stream", requestStream, "apiUrl", apiUrl);
 
         try {
             String requestBody = objectMapper.writeValueAsString(completionRequest);
@@ -217,7 +240,7 @@ public class GlmAiProvider implements AiProvider
                     .url(apiUrl)
                     .header("Authorization", "Bearer " + apiKey)
                     .header("Content-Type", "application/json")
-                    .header("Accept", stream ? "text/event-stream" : "application/json")
+                    .header("Accept", requestStream ? "text/event-stream" : "application/json")
                     .post(RequestBody.create(requestBody, JSON))
                     .build();
 
@@ -228,29 +251,40 @@ public class GlmAiProvider implements AiProvider
                     .build();
 
             try (Response response = client.newCall(httpRequest).execute()) {
+                emitStreamStatus(streamStatusConsumer, "response", "code", response.code(),
+                        "contentType", response.header("Content-Type", ""));
                 if (response.body() == null) {
+                    emitStreamStatus(streamStatusConsumer, "body_empty");
                     return "";
                 }
                 if (!response.isSuccessful()) {
                     String responseBody = response.body().string();
+                    emitStreamStatus(streamStatusConsumer, "http_error", "code", response.code(),
+                            "body", truncate(responseBody, 500));
                     throw new IllegalStateException("大模型请求失败：" + response.code() + "，" + truncate(responseBody, 500));
                 }
-                if (stream) {
-                    return readStreamResponse(response, onContent);
+                if (requestStream) {
+                    return readStreamResponse(response, onContent, streamStatusConsumer);
                 }
                 String responseBody = response.body().string();
+                emitStreamStatus(streamStatusConsumer, "json_done", "chars", responseBody.length());
                 return parseJsonResponse(responseBody, onContent);
             }
         } catch (JsonProcessingException e) {
+            emitStreamStatus(streamStatusConsumer, "error", "message", e.getMessage());
             throw new IllegalStateException("构造大模型请求失败：" + e.getMessage(), e);
         } catch (IOException e) {
+            emitStreamStatus(streamStatusConsumer, "error", "message", e.getMessage());
             throw new IllegalStateException("大模型请求异常：" + e.getMessage(), e);
         }
     }
 
-    private String readStreamResponse(Response response, Consumer<String> onContent) throws IOException
+    private String readStreamResponse(Response response, Consumer<String> onContent, Consumer<Map<String, Object>> streamStatusConsumer) throws IOException
     {
         StringBuilder answerContent = new StringBuilder();
+        long startedAt = System.currentTimeMillis();
+        int chunkCount = 0;
+        int charCount = 0;
         try (BufferedReader reader = new BufferedReader(response.body().charStream())) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -262,9 +296,16 @@ public class GlmAiProvider implements AiProvider
                 if ("[DONE]".equals(json)) {
                     continue;
                 }
+                chunkCount++;
+                charCount += json.length();
+                if (chunkCount <= 5 || chunkCount % 20 == 0) {
+                    emitStreamStatus(streamStatusConsumer, "chunk", "count", chunkCount, "length", json.length());
+                }
                 appendChunkContent(answerContent, json, onContent);
             }
         }
+        emitStreamStatus(streamStatusConsumer, "stream_done", "chunks", chunkCount,
+                "chars", charCount, "durationMs", System.currentTimeMillis() - startedAt);
         return answerContent.toString();
     }
 
@@ -337,6 +378,41 @@ public class GlmAiProvider implements AiProvider
         }
     }
 
+    private void emitStreamStatus(Consumer<Map<String, Object>> consumer, String stage, Object... values)
+    {
+        if (consumer == null) {
+            return;
+        }
+        Map<String, Object> payload = new LinkedHashMap<String, Object>();
+        payload.put("stage", stage);
+        if (values != null) {
+            for (int i = 0; i + 1 < values.length; i += 2) {
+                payload.put(String.valueOf(values[i]), values[i + 1]);
+            }
+        }
+        consumer.accept(payload);
+    }
+
+    private String buildContentOperationPrompt(GenerateContentAiRequest request, String instruction)
+    {
+        StringBuilder prompt = new StringBuilder(StringUtils.defaultString(instruction));
+        appendPromptPart(prompt, "项目名称", request == null ? null : request.getProjectName());
+        appendPromptPart(prompt, "目录标题", request == null ? null : request.getOutlineTitle());
+        appendPromptPart(prompt, "招标要求", request == null ? null : request.getRequirement());
+        appendPromptPart(prompt, "已有内容", request == null ? null : request.getExistingContent());
+        appendPromptPart(prompt, "知识库参考", request == null ? null : request.getKnowledgeContext());
+        appendPromptPart(prompt, "完整提示词", request == null ? null : request.getFinalPrompt());
+        return prompt.toString();
+    }
+
+    private void appendPromptPart(StringBuilder prompt, String label, String value)
+    {
+        if (StringUtils.isBlank(value)) {
+            return;
+        }
+        prompt.append("\n\n【").append(label).append("】\n").append(value);
+    }
+
     private String normalizePrompt(String prompt, String inputText)
     {
         String value = StringUtils.defaultString(prompt);
@@ -368,9 +444,9 @@ public class GlmAiProvider implements AiProvider
             if (markdownResponse.getNodes() != null && !markdownResponse.getNodes().isEmpty()) {
                 return markdownResponse;
             }
-            log.warn("大模型大纲解析失败，使用mock兜底。原始响应：{}", truncate(answer, 500));
+            log.warn("大模型大纲解析失败，mock 兜底已禁用。原始响应：{}", truncate(answer, 500));
         }
-        return mockAiProvider.generateOutline(new GenerateOutlineAiRequest());
+        throw new IllegalStateException("outline model response cannot be parsed");
     }
 
     private String extractJson(String answer)
@@ -453,6 +529,115 @@ public class GlmAiProvider implements AiProvider
                 .replace("\\n", "\n")
                 .replace("\\r", "")
                 .replace("\\\\", "\\");
+    }
+
+    private class ContentTextStreamAdapter
+    {
+        private final Consumer<String> consumer;
+        private final StringBuilder buffer = new StringBuilder();
+        private boolean textStarted = false;
+        private boolean textComplete = false;
+        private boolean escaping = false;
+        private boolean plainMode = false;
+        private int scanIndex = 0;
+
+        private ContentTextStreamAdapter(Consumer<String> consumer)
+        {
+            this.consumer = consumer;
+        }
+
+        private void accept(String chunk)
+        {
+            if (StringUtils.isEmpty(chunk) || textComplete) {
+                return;
+            }
+            buffer.append(chunk);
+            emitText();
+        }
+
+        private void flush()
+        {
+            emitText();
+        }
+
+        private void emitText()
+        {
+            if (consumer == null || textComplete) {
+                return;
+            }
+            if (!textStarted) {
+                if (isPlainTextAnswer()) {
+                    textStarted = true;
+                    plainMode = true;
+                    scanIndex = 0;
+                } else {
+                    Matcher matcher = CONTENT_TEXT_START_PATTERN.matcher(buffer);
+                    if (!matcher.find()) {
+                        return;
+                    }
+                    textStarted = true;
+                    scanIndex = matcher.end();
+                }
+            }
+
+            if (plainMode) {
+                if (scanIndex < buffer.length()) {
+                    String output = buffer.substring(scanIndex);
+                    scanIndex = buffer.length();
+                    if (StringUtils.isNotEmpty(output)) {
+                        consumer.accept(output);
+                    }
+                }
+                return;
+            }
+
+            StringBuilder output = new StringBuilder();
+            while (scanIndex < buffer.length()) {
+                char value = buffer.charAt(scanIndex++);
+                if (escaping) {
+                    appendEscaped(output, value);
+                    escaping = false;
+                    continue;
+                }
+                if (value == '\\') {
+                    escaping = true;
+                    continue;
+                }
+                if (value == '"') {
+                    textComplete = true;
+                    break;
+                }
+                output.append(value);
+            }
+            if (output.length() > 0) {
+                consumer.accept(output.toString());
+            }
+        }
+
+        private boolean isPlainTextAnswer()
+        {
+            for (int i = 0; i < buffer.length(); i++) {
+                char value = buffer.charAt(i);
+                if (Character.isWhitespace(value)) {
+                    continue;
+                }
+                return value != '{' && value != '[' && value != '`';
+            }
+            return false;
+        }
+
+        private void appendEscaped(StringBuilder output, char value)
+        {
+            if (value == 'n') {
+                output.append('\n');
+            } else if (value == 'r') {
+                output.append('\n');
+            } else if (value == 't') {
+                output.append('\t');
+            } else {
+                output.append(value);
+            }
+        }
     }
 
     private class OutlineStreamMarkdownAdapter

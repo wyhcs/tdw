@@ -5,6 +5,7 @@ import com.ruoyi.tdw.ai.dto.GenerateContentAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateContentAiResponse;
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiRequest;
 import com.ruoyi.tdw.ai.dto.GenerateOutlineAiResponse;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -23,6 +24,16 @@ public interface AiProvider
     }
 
     GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request);
+
+    default GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request, Consumer<String> contentTextConsumer)
+    {
+        return generateContentBlocks(request);
+    }
+
+    default GenerateContentAiResponse generateContentBlocks(GenerateContentAiRequest request, Consumer<String> contentTextConsumer, Consumer<Map<String, Object>> streamStatusConsumer)
+    {
+        return generateContentBlocks(request, contentTextConsumer);
+    }
 
     String optimizeContent(GenerateContentAiRequest request);
 
