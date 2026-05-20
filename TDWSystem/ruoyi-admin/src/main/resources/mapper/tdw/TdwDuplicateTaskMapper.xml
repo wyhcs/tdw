@@ -10,11 +10,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="bidId" column="bid_id" />
         <result property="compareBidId" column="compare_bid_id" />
         <result property="sourceType" column="source_type" />
+        <result property="checkScope" column="check_scope" />
+        <result property="compareLibraryIds" column="compare_library_ids" />
         <result property="status" column="status" />
         <result property="totalCount" column="total_count" />
         <result property="issueCount" column="issue_count" />
+        <result property="riskCount" column="risk_count" />
         <result property="totalTextLength" column="total_text_length" />
         <result property="overallSimilarity" column="overall_similarity" />
+        <result property="textSimilarity" column="text_similarity" />
+        <result property="imageSimilarity" column="image_similarity" />
+        <result property="riskLevel" column="risk_level" />
+        <result property="reportJson" column="report_json" />
+        <result property="errorMessage" column="error_message" />
         <result property="startTime" column="start_time" />
         <result property="finishTime" column="finish_time" />
         <result property="createBy" column="create_by" />
@@ -23,40 +31,52 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="updateTime" column="update_time" />
         <result property="remark" column="remark" />
         <result property="delFlag" column="del_flag" />
+        <result property="sourceFileName" column="source_file_name" />
+        <result property="sourceFileUrl" column="source_file_url" />
+        <result property="sourceFileSize" column="source_file_size" />
+        <result property="sourceFileType" column="source_file_type" />
+        <result property="sourceTextLength" column="source_text_length" />
     </resultMap>
 
     <sql id="selectDuplicateTaskVo">
-        select id, task_name, bid_id, compare_bid_id, source_type, status, total_count, issue_count,
-               total_text_length, overall_similarity, start_time, finish_time,
-               create_by, create_time, update_by, update_time, remark, del_flag
-        from tdw_duplicate_task
+        select t.id, t.task_name, t.bid_id, t.compare_bid_id, t.source_type, t.check_scope, t.compare_library_ids,
+               t.status, t.total_count, t.issue_count, t.risk_count, t.total_text_length,
+               t.overall_similarity, t.text_similarity, t.image_similarity, t.risk_level, t.report_json, t.error_message,
+               t.start_time, t.finish_time, t.create_by, t.create_time, t.update_by, t.update_time, t.remark, t.del_flag,
+               sf.original_name as source_file_name, sf.file_url as source_file_url, sf.file_size as source_file_size,
+               sf.file_type as source_file_type, char_length(sf.extracted_text) as source_text_length
+        from tdw_duplicate_task t
+        left join tdw_duplicate_file sf on sf.task_id = t.id and sf.file_role = 'source' and sf.del_flag = '0'
     </sql>
 
     <select id="selectDuplicateTaskById" parameterType="Long" resultMap="TdwDuplicateTaskResult">
         <include refid="selectDuplicateTaskVo"/>
-        where id = #{id} and del_flag = '0'
+        where t.id = #{id} and t.del_flag = '0'
     </select>
 
     <select id="selectDuplicateTaskList" parameterType="TdwDuplicateTask" resultMap="TdwDuplicateTaskResult">
         <include refid="selectDuplicateTaskVo"/>
         <where>
-            del_flag = '0'
-            <if test="taskName != null and taskName != ''"> and task_name like concat('%', #{taskName}, '%')</if>
-            <if test="bidId != null"> and bid_id = #{bidId}</if>
-            <if test="compareBidId != null"> and compare_bid_id = #{compareBidId}</if>
-            <if test="sourceType != null and sourceType != ''"> and source_type = #{sourceType}</if>
-            <if test="status != null and status != ''"> and status = #{status}</if>
+            t.del_flag = '0'
+            <if test="taskName != null and taskName != ''"> and t.task_name like concat('%', #{taskName}, '%')</if>
+            <if test="bidId != null"> and t.bid_id = #{bidId}</if>
+            <if test="compareBidId != null"> and t.compare_bid_id = #{compareBidId}</if>
+            <if test="sourceType != null and sourceType != ''"> and t.source_type = #{sourceType}</if>
+            <if test="checkScope != null and checkScope != ''"> and t.check_scope = #{checkScope}</if>
+            <if test="status != null and status != ''"> and t.status = #{status}</if>
         </where>
-        order by create_time desc, id desc
+        order by t.create_time desc, t.id desc
     </select>
 
     <insert id="insertDuplicateTask" parameterType="TdwDuplicateTask" useGeneratedKeys="true" keyProperty="id">
-        insert into tdw_duplicate_task(task_name, bid_id, compare_bid_id, source_type, status, total_count, issue_count,
-                                       total_text_length, overall_similarity, start_time, finish_time,
-                                       create_by, create_time, update_by, update_time, remark, del_flag)
-        values(#{taskName}, #{bidId}, #{compareBidId}, #{sourceType}, #{status}, #{totalCount}, #{issueCount},
-               #{totalTextLength}, #{overallSimilarity}, #{startTime}, #{finishTime},
-               #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+        insert into tdw_duplicate_task(task_name, bid_id, compare_bid_id, source_type, check_scope, compare_library_ids,
+                                       status, total_count, issue_count, risk_count, total_text_length,
+                                       overall_similarity, text_similarity, image_similarity, risk_level, report_json, error_message,
+                                       start_time, finish_time, create_by, create_time, update_by, update_time, remark, del_flag)
+        values(#{taskName}, #{bidId}, #{compareBidId}, #{sourceType}, #{checkScope}, #{compareLibraryIds},
+               #{status}, #{totalCount}, #{issueCount}, #{riskCount}, #{totalTextLength},
+               #{overallSimilarity}, #{textSimilarity}, #{imageSimilarity}, #{riskLevel}, #{reportJson}, #{errorMessage},
+               #{startTime}, #{finishTime}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
     </insert>
 
     <update id="updateDuplicateTask" parameterType="TdwDuplicateTask">
@@ -66,11 +86,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="bidId != null">bid_id = #{bidId},</if>
             <if test="compareBidId != null">compare_bid_id = #{compareBidId},</if>
             <if test="sourceType != null">source_type = #{sourceType},</if>
+            <if test="checkScope != null">check_scope = #{checkScope},</if>
+            <if test="compareLibraryIds != null">compare_library_ids = #{compareLibraryIds},</if>
             <if test="status != null">status = #{status},</if>
             <if test="totalCount != null">total_count = #{totalCount},</if>
             <if test="issueCount != null">issue_count = #{issueCount},</if>
+            <if test="riskCount != null">risk_count = #{riskCount},</if>
             <if test="totalTextLength != null">total_text_length = #{totalTextLength},</if>
             <if test="overallSimilarity != null">overall_similarity = #{overallSimilarity},</if>
+            <if test="textSimilarity != null">text_similarity = #{textSimilarity},</if>
+            <if test="imageSimilarity != null">image_similarity = #{imageSimilarity},</if>
+            <if test="riskLevel != null">risk_level = #{riskLevel},</if>
+            <if test="reportJson != null">report_json = #{reportJson},</if>
+            <if test="errorMessage != null">error_message = #{errorMessage},</if>
             <if test="startTime != null">start_time = #{startTime},</if>
             <if test="finishTime != null">finish_time = #{finishTime},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>

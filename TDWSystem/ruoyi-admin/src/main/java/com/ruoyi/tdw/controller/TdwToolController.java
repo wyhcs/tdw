@@ -2,12 +2,14 @@ package com.ruoyi.tdw.controller;
 
 import java.io.IOException;
 import java.util.List;
+import javax.servlet.http.HttpServletResponse;
 import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.tdw.domain.TdwGallery;
 import com.ruoyi.tdw.domain.TdwGalleryImage;
+import com.ruoyi.tdw.domain.TdwToolConvertRecord;
 import com.ruoyi.tdw.service.ITdwToolService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,6 +30,38 @@ public class TdwToolController extends BaseController
 {
     @Autowired
     private ITdwToolService toolService;
+
+    @GetMapping("/convert/list")
+    public TableDataInfo convertList(TdwToolConvertRecord query)
+    {
+        startPage();
+        List<TdwToolConvertRecord> list = toolService.selectConvertRecordList(query);
+        return getDataTable(list);
+    }
+
+    @GetMapping("/convert/{id}")
+    public AjaxResult getConvert(@PathVariable Long id)
+    {
+        return success(toolService.selectConvertRecordById(id));
+    }
+
+    @PostMapping("/pdfToWord")
+    public AjaxResult pdfToWord(@RequestParam("file") MultipartFile file) throws IOException
+    {
+        return success(toolService.convertPdfToWord(file));
+    }
+
+    @GetMapping("/convert/download/{id}")
+    public void downloadConvert(@PathVariable Long id, HttpServletResponse response) throws IOException
+    {
+        toolService.downloadConvertFile(id, response);
+    }
+
+    @DeleteMapping("/convert/{ids}")
+    public AjaxResult removeConvert(@PathVariable Long[] ids)
+    {
+        return toAjax(toolService.deleteConvertRecordByIds(ids));
+    }
 
     @GetMapping("/gallery/list")
     public TableDataInfo galleryList(TdwGallery query)

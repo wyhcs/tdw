@@ -1,4 +1,5 @@
 import Vue from 'vue'
+import VueCompositionAPI from '@vue/composition-api'
 
 import Cookies from 'js-cookie'
 
@@ -56,6 +57,7 @@ Vue.component('FileUpload', FileUpload)
 Vue.component('ImageUpload', ImageUpload)
 Vue.component('ImagePreview', ImagePreview)
 
+Vue.use(VueCompositionAPI)
 Vue.use(directive)
 Vue.use(plugins)
 DictData.install()

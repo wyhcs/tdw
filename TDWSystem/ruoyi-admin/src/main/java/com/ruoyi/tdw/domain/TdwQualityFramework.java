@@ -10,6 +10,7 @@ public class TdwQualityFramework extends BaseEntity
     private static final long serialVersionUID = 1L;
 
     private Long id;
+    private Long bidId;
     private String frameworkName;
     private String description;
     private String fileName;
@@ -22,6 +23,8 @@ public class TdwQualityFramework extends BaseEntity
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getBidId() { return bidId; }
+    public void setBidId(Long bidId) { this.bidId = bidId; }
     public String getFrameworkName() { return frameworkName; }
     public void setFrameworkName(String frameworkName) { this.frameworkName = frameworkName; }
     public String getDescription() { return description; }

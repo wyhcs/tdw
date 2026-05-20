@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ruoyi.common.config.RuoYiConfig;
 import com.ruoyi.common.utils.DateUtils;
@@ -36,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class TdwTenderServiceImpl implements ITdwTenderService
 {
     private static final String PROMPT_ROOT = "prompts/ai-plan/";
+    private static final String TENDER_INTERPRETATION_PROMPT = "prompts/tender-parse-interpretation-prompts.json";
 
     @Autowired
     private TdwBidsMapper tdwBidsMapper;
@@ -121,31 +123,32 @@ public class TdwTenderServiceImpl implements ITdwTenderService
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TdwTenderParseReport mockParse(Long tenderFileId)
+    public TdwTenderParseReport parseTenderInterpretation(Long tenderFileId)
+    {
+        return createTenderInterpretationReport(tenderFileId);
+    }
+
+    private TdwTenderParseReport createTenderInterpretationReport(Long tenderFileId)
     {
         TdwTenderFile tenderFile = tenderFileMapper.selectById(tenderFileId);
         if (tenderFile == null) {
             throw new IllegalArgumentException("招标文件不存在");
         }
+        TdwTenderParseReport existingReport = parseReportMapper.selectByTenderFileId(tenderFileId);
+        if (existingReport != null && "success".equals(existingReport.getParseStatus())) {
+            return existingReport;
+        }
+        tenderFileMapper.updateParseStatus(tenderFileId, "parsing", null);
         TdwBids bid = tdwBidsMapper.selectTdwBidsById(tenderFile.getBidId());
         String sourceText = parseUploadedText(tenderFile);
         String projectName = inferProjectName(sourceText, bid == null ? null : bid.getTitle(), tenderFile.getOriginalName());
-        String requirementSummary = buildRequirementSummary(sourceText);
-        String scoreItems = buildScoreItems(sourceText);
 
-        Map<String, Object> report = new LinkedHashMap<String, Object>();
-        report.put("projectName", projectName);
-        report.put("sourceFileName", tenderFile.getOriginalName());
-        report.put("projectBasicInfo", buildProjectBasicInfo(projectName, sourceText));
-        report.put("purchaseRequirement", extractSection(sourceText, "采购需求", "技术标准与要求", "主要商务要求", "项目概况"));
-        report.put("serviceOrTechnicalRequirements", extractSection(sourceText, "技术标准与要求", "功能要求", "性能要求", "服务要求"));
-        report.put("qualificationRequirements", extractSection(sourceText, "资格", "投标人资格", "资格审查"));
-        report.put("scoreItems", buildScoreItemList(sourceText));
-        report.put("invalidBidClauses", extractSection(sourceText, "废标", "无效投标", "无效标"));
-        report.put("responseDocumentComposition", extractSection(sourceText, "投标文件组成", "响应文件格式", "应提交材料"));
-        report.put("contractTerms", extractSection(sourceText, "合同", "履约", "验收", "付款"));
-        report.put("rawText", sourceText);
-        report.put("sourceFileName", tenderFile.getOriginalName());
+        Map<String, Object> report = generateTenderInterpretationReport(sourceText, tenderFile.getOriginalName());
+        projectName = defaultString(extractReportNodeText(report, "name", 120), projectName);
+        String requirementSummary = defaultString(extractReportNodeText(report, "PROJECT_INTERPRETATION", 1000),
+                truncate(sourceText == null ? "" : sourceText.replaceAll("\\s+", " ").trim(), 500));
+        String scoreItems = defaultString(extractReportNodeText(report, "EVALUATION_CRITERIA", 1200),
+                extractReportNodeText(report, "EVALUATION_FRAMEWORK", 1200));
 
         TdwTenderParseReport parseReport = new TdwTenderParseReport();
         parseReport.setBidId(tenderFile.getBidId());
@@ -520,72 +523,302 @@ public class TdwTenderServiceImpl implements ITdwTenderService
         return FilenameUtils.getBaseName(originalName == null ? "AI方案项目" : originalName);
     }
 
-    private String buildRequirementSummary(String sourceText)
-    {
-        if (sourceText != null && sourceText.contains("高等学校教学资源管理")) {
-            return "围绕高校教学资源管理、个性化推荐、学生行为数据分析和决策分析能力建设，需响应统一用户管理、权限管理、基础信息管理、资源管理、接口管理、智能推荐、可视化分析、教师教研管理和基础服务等核心要求。";
+    private Map<String, Object> generateTenderInterpretationReport(String sourceText, String originalName) {
+        try {
+            String answer = aiService.extractText(buildTenderInterpretationPrompt(sourceText), sourceText, "tender-interpretation");
+            Map<String, Object> aiReport = parseTenderInterpretationAiJson(answer);
+            if (isTenderInterpretationReport(aiReport)) {
+                Map<String, Object> report = normalizeTenderInterpretationReport(aiReport);
+                attachTenderInterpretationMetadata(report, originalName);
+                return report;
+            }
+            throw new IllegalStateException("大模型未返回合法的招标解读JSON");
+        } catch (Exception e) {
+            throw new IllegalStateException("大模型解析报告失败：" + e.getMessage(), e);
         }
-        if (sourceText == null || sourceText.trim().length() == 0) {
-            return "Mock解析：需围绕招标文件要求响应技术方案、实施计划、质量保障、服务承诺和商务条款。";
-        }
-        return truncate(sourceText.replaceAll("\\s+", " "), 500);
     }
 
-    private String buildScoreItems(String sourceText)
+    @SuppressWarnings("unchecked")
+    private String buildTenderInterpretationPrompt(String sourceText)
     {
-        if (sourceText != null && sourceText.contains("技术参数")) {
-            return "技术参数（51.0分）；项目实施阶段方案（9.0分）；可视化开发技术方案（6.0分）；质量保障与售后服务响应";
+        Map<String, Object> config;
+        try {
+            config = loadTenderInterpretationPromptConfig();
+        } catch (Exception e) {
+            config = new LinkedHashMap<String, Object>();
         }
-        return "技术方案响应；实施组织与进度；质量与风险控制；售后服务承诺；商务响应";
-    }
-
-    private Map<String, Object> buildProjectBasicInfo(String projectName, String sourceText)
-    {
-        Map<String, Object> info = new LinkedHashMap<String, Object>();
-        info.put("项目名称", projectName);
-        info.put("方案类型", "服务方案");
-        info.put("识别来源", sourceText == null || sourceText.trim().isEmpty() ? "文件名与用户录入信息" : "上传文件正文");
-        return info;
-    }
-
-    private List<Map<String, Object>> buildScoreItemList(String sourceText)
-    {
-        List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
-        if (sourceText != null && sourceText.contains("技术参数")) {
-            items.add(scoreItem("技术参数", "51.0分", "投标产品与招标文件规定的技术参数和要求的满足程度，需完整响应实质性参数与一般参数。"));
-            items.add(scoreItem("项目实施阶段方案", "9.0分", "围绕需求分析、实施准备、培训、测试、试运行和验收等阶段形成可执行方案。"));
-            items.add(scoreItem("可视化开发技术方案", "6.0分", "结合实时数据、前端展示窗口、系统数据架构和系统应用架构进行响应。"));
-            return items;
+        String systemPrompt = defaultString((String) config.get("systemPrompt"), "");
+        String userPrompt = "";
+        Object singlePassValue = config.get("singlePass");
+        if (singlePassValue instanceof Map) {
+            userPrompt = defaultString((String) ((Map<String, Object>) singlePassValue).get("userPrompt"), "");
         }
-        items.add(scoreItem("技术方案响应", "重点项", "覆盖采购需求、服务或技术要求和实施路线。"));
-        items.add(scoreItem("实施组织与进度", "重点项", "说明团队组织、阶段计划、交付控制和协同机制。"));
-        items.add(scoreItem("质量与风险控制", "重点项", "说明质量检查、风险识别、应急处理和售后保障。"));
-        return items;
-    }
-
-    private Map<String, Object> scoreItem(String name, String score, String requirement)
-    {
-        Map<String, Object> item = new LinkedHashMap<String, Object>();
-        item.put("name", name);
-        item.put("score", score);
-        item.put("requirement", requirement);
-        return item;
-    }
-
-    private String extractSection(String sourceText, String... keywords)
-    {
-        if (sourceText == null || sourceText.trim().length() == 0 || keywords == null) {
-            return "";
+        if (userPrompt.length() == 0) {
+            userPrompt = defaultString((String) config.get("commonUserTemplate"), "");
         }
-        String compact = sourceText.replaceAll("\\s+", " ");
-        for (String keyword : keywords) {
-            int index = compact.indexOf(keyword);
-            if (index >= 0) {
-                int end = Math.min(compact.length(), index + 700);
-                return compact.substring(index, end);
+        String prompt = (systemPrompt + "\n\n" + userPrompt).trim();
+        if (prompt.length() == 0) {
+            prompt = "请根据招标文件全文输出招标解读JSON，结构包含项目解读、项目基础信息、形式审查项、资格审查项、响应审查项、评审框架、无效标与废标项、关键字抓取项。\n\n【招标文件全文】\n{{tenderText}}";
+        }
+        return prompt.replace("{{tenderText}}", defaultString(sourceText, ""));
+    }
+
+    private Map<String, Object> parseTenderInterpretationAiJson(String answer) throws IOException
+    {
+        String value = defaultString(answer, "").trim();
+        if (value.startsWith("```")) {
+            value = value.replaceFirst("^```(?:json|JSON)?\\s*", "");
+            value = value.replaceFirst("\\s*```$", "");
+        }
+        int start = value.indexOf('{');
+        int end = value.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            value = value.substring(start, end + 1);
+        }
+        return objectMapper.readValue(value, new TypeReference<LinkedHashMap<String, Object>>() {});
+    }
+
+    private boolean isTenderInterpretationReport(Map<String, Object> report)
+    {
+        return report != null
+                && "TENDER_INTERPRETATION_REPORT".equals(String.valueOf(report.get("k")))
+                && report.get("v") instanceof List;
+    }
+
+    private Map<String, Object> normalizeTenderInterpretationReport(Map<String, Object> aiReport)
+    {
+        Map<String, Object> report = loadTenderInterpretationSchema();
+        mergeTenderInterpretationNode(report, aiReport);
+        return report;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void mergeTenderInterpretationNode(Map<String, Object> target, Map<String, Object> source)
+    {
+        if (target == null || source == null) {
+            return;
+        }
+        Object targetValue = target.get("v");
+        Object sourceValue = source.get("v");
+        if (targetValue instanceof List && sourceValue instanceof List && isNodeList((List<Object>) targetValue)) {
+            for (Object targetItem : (List<Object>) targetValue) {
+                if (!(targetItem instanceof Map)) {
+                    continue;
+                }
+                Map<String, Object> targetNode = (Map<String, Object>) targetItem;
+                Map<String, Object> sourceNode = findNodeByKey((List<Object>) sourceValue, String.valueOf(targetNode.get("k")));
+                if (sourceNode != null) {
+                    mergeTenderInterpretationNode(targetNode, sourceNode);
+                }
+            }
+        } else if (sourceValue != null) {
+            target.put("v", sourceValue);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isNodeList(List<Object> values)
+    {
+        if (values == null || values.isEmpty()) {
+            return false;
+        }
+        for (Object value : values) {
+            if (value instanceof Map && ((Map<String, Object>) value).containsKey("k")) {
+                return true;
             }
         }
-        return "";
+        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findNodeByKey(List<Object> nodes, String key)
+    {
+        if (nodes == null) {
+            return null;
+        }
+        for (Object node : nodes) {
+            if (node instanceof Map && key.equals(String.valueOf(((Map<String, Object>) node).get("k")))) {
+                return (Map<String, Object>) node;
+            }
+        }
+        return null;
+    }
+
+    private void attachTenderInterpretationMetadata(Map<String, Object> report, String originalName)
+    {
+        report.put("sourceFileName", originalName);
+        report.put("promptConfigCode", "tender.parse.interpretation.prompts");
+        report.put("promptResource", TENDER_INTERPRETATION_PROMPT);
+    }
+
+    private String extractReportNodeText(Map<String, Object> report, String key, int maxLength)
+    {
+        Map<String, Object> node = findNodeDeep(report, key);
+        if (node == null) {
+            return "";
+        }
+        return truncate(flattenReportValue(node.get("v")).trim(), maxLength);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findNodeDeep(Map<String, Object> node, String key)
+    {
+        if (node == null) {
+            return null;
+        }
+        if (key.equals(String.valueOf(node.get("k")))) {
+            return node;
+        }
+        Object value = node.get("v");
+        if (!(value instanceof List)) {
+            return null;
+        }
+        for (Object child : (List<Object>) value) {
+            if (child instanceof Map) {
+                Map<String, Object> matched = findNodeDeep((Map<String, Object>) child, key);
+                if (matched != null) {
+                    return matched;
+                }
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String flattenReportValue(Object value)
+    {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof String) {
+            return (String) value;
+        }
+        if (value instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) value;
+            String name = map.get("n") == null ? "" : String.valueOf(map.get("n"));
+            String childValue = flattenReportValue(map.get("v"));
+            return name.length() == 0 ? childValue : name + "：" + childValue;
+        }
+        if (value instanceof List) {
+            List<String> items = new ArrayList<String>();
+            for (Object item : (List<Object>) value) {
+                String text = flattenReportValue(item).trim();
+                if (text.length() > 0) {
+                    items.add(text);
+                }
+            }
+            return String.join("\n", items);
+        }
+        return String.valueOf(value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> loadTenderInterpretationSchema()
+    {
+        try {
+            Map<String, Object> config = loadTenderInterpretationPromptConfig();
+            Map<String, Object> singlePass = (Map<String, Object>) config.get("singlePass");
+            Object schema = singlePass == null ? config.get("rootOutputSchema") : singlePass.get("outputSchema");
+            Map<String, Object> converted = objectMapper.convertValue(schema, new TypeReference<LinkedHashMap<String, Object>>() {});
+            return converted == null ? defaultTenderInterpretationSchema() : converted;
+        } catch (Exception e) {
+            return defaultTenderInterpretationSchema();
+        }
+    }
+
+    private Map<String, Object> loadTenderInterpretationPromptConfig() throws IOException
+    {
+        ClassPathResource resource = new ClassPathResource(TENDER_INTERPRETATION_PROMPT);
+        return objectMapper.readValue(resource.getInputStream(), new TypeReference<LinkedHashMap<String, Object>>() {});
+    }
+
+    private Map<String, Object> defaultTenderInterpretationSchema()
+    {
+        Map<String, Object> root = node("TENDER_INTERPRETATION_REPORT", "招标解读", new ArrayList<Object>());
+        List<Object> sections = childList(root);
+        sections.add(node("PROJECT_INTERPRETATION", "项目解读", new ArrayList<Object>()));
+        sections.add(node("PROJECT_INFO", "项目基础信息", projectInfoFields()));
+        sections.add(node("FORM_REVIEW", "形式审查项", reviewFields(
+                node("DOC_CATALOG", "投标文件目录", new ArrayList<Object>()),
+                node("BLIND_BID_FORMAT", "暗标格式", new ArrayList<Object>()),
+                node("OTHER_FORM_REQUIREMENTS", "其他要求", new ArrayList<Object>()),
+                node("PACKAGING_REQUIREMENTS", "封装要求", new ArrayList<Object>()))));
+        sections.add(node("QUALIFICATION_REVIEW", "资格审查项", reviewFields(
+                node("QUALIFICATION_REQUIREMENTS", "资质要求", new ArrayList<Object>()),
+                node("PERFORMANCE_REQUIREMENTS", "业绩要求", new ArrayList<Object>()),
+                node("FINANCIAL_REQUIREMENTS", "财务要求", new ArrayList<Object>()))));
+        sections.add(node("RESPONSE_REVIEW", "响应审查项", reviewFields(
+                node("TECHNICAL_REQUIREMENTS", "技术要求", new ArrayList<Object>()),
+                node("PARAMETER_REQUIREMENTS", "参数要求", new ArrayList<Object>()),
+                node("SUBSTANTIVE_TERMS", "实质性条款", new ArrayList<Object>()))));
+        sections.add(node("EVALUATION_FRAMEWORK", "评审框架", reviewFields(
+                node("EVALUATION_METHOD", "评审方式", new ArrayList<Object>()),
+                node("EVALUATION_CRITERIA", "评审标准", new ArrayList<Object>()))));
+        sections.add(node("INVALID_AND_WASTE_BID", "无效标与废标项", reviewFields(
+                node("WASTE_BID_ITEMS", "废标项", new ArrayList<Object>()))));
+        sections.add(node("KEYWORD_EXTRACTION", "关键字抓取项", reviewFields(
+                node("KW_QUALIFICATION", "资格", new ArrayList<Object>()),
+                node("KW_WASTE_BID", "废标", new ArrayList<Object>()),
+                node("KW_INVALID", "无效", new ArrayList<Object>()),
+                node("KW_RESPONSE", "响应", new ArrayList<Object>()),
+                node("KW_COMMITMENT", "承诺", new ArrayList<Object>()))));
+        return root;
+    }
+
+    private List<Object> projectInfoFields()
+    {
+        List<Object> fields = new ArrayList<Object>();
+        fields.add(node("name", "项目名称", ""));
+        fields.add(node("no", "招标编号", ""));
+        fields.add(node("agencyNo", "委托代理编号", ""));
+        fields.add(node("overview", "项目概况", ""));
+        fields.add(node("tenderer", "招标人/采购人", ""));
+        fields.add(node("funding", "资金来源及落实情况", ""));
+        fields.add(node("lot_division", "标段/包号划分", new ArrayList<Object>()));
+        fields.add(node("bid_deadline", "投标文件递交截止时间与地点", ""));
+        fields.add(node("opening", "开标时间与地点", ""));
+        fields.add(node("validity", "投标有效期", ""));
+        fields.add(node("bid_bond", "投标保证金", ""));
+        fields.add(node("perf_bond", "履约保证金", ""));
+        fields.add(node("prebid_meeting", "现场踏勘/答疑会", ""));
+        fields.add(node("proc_method", "采购方式", ""));
+        fields.add(node("scope", "招标范围", new ArrayList<Object>()));
+        fields.add(node("control_price", "招标控制价", ""));
+        fields.add(node("bid_discount_rate", "投标竞争下浮率", ""));
+        fields.add(node("allow_joint", "是否接受联合体投标", ""));
+        fields.add(node("allow_subcontract", "是否允许分包", ""));
+        fields.add(node("eval_method", "评标方法", ""));
+        return fields;
+    }
+
+    private List<Object> reviewFields(Map<String, Object>... nodes)
+    {
+        List<Object> fields = new ArrayList<Object>();
+        for (Map<String, Object> node : nodes) {
+            fields.add(node);
+        }
+        return fields;
+    }
+
+    private Map<String, Object> node(String key, String name, Object value)
+    {
+        Map<String, Object> node = new LinkedHashMap<String, Object>();
+        node.put("k", key);
+        node.put("n", name);
+        node.put("v", value);
+        return node;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> childList(Map<String, Object> node)
+    {
+        Object value = node.get("v");
+        if (value instanceof List) {
+            return (List<Object>) value;
+        }
+        List<Object> list = new ArrayList<Object>();
+        node.put("v", list);
+        return list;
     }
 
     private String truncate(String text, int maxLength)

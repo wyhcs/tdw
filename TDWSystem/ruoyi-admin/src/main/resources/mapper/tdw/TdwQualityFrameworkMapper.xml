@@ -6,6 +6,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <resultMap type="TdwQualityFramework" id="TdwQualityFrameworkResult">
         <result property="id" column="id" />
+        <result property="bidId" column="bid_id" />
         <result property="frameworkName" column="framework_name" />
         <result property="description" column="description" />
         <result property="fileName" column="file_name" />
@@ -23,29 +24,38 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectQualityFrameworkVo">
-        select id, framework_name, description, file_name, original_name, file_url, file_size, status, item_count,
+        select framework_id as id, bid_id, framework_name, description, file_name, original_name, file_url, file_size, status, item_count,
                create_by, create_time, update_by, update_time, remark, del_flag
         from tdw_quality_framework
     </sql>
 
     <select id="selectQualityFrameworkById" parameterType="Long" resultMap="TdwQualityFrameworkResult">
         <include refid="selectQualityFrameworkVo"/>
-        where id = #{id} and del_flag = '0'
+        where framework_id = #{id} and del_flag = '0'
     </select>
 
     <select id="selectQualityFrameworkList" parameterType="TdwQualityFramework" resultMap="TdwQualityFrameworkResult">
         <include refid="selectQualityFrameworkVo"/>
         <where>
             del_flag = '0'
+            <if test="bidId != null"> and bid_id = #{bidId}</if>
             <if test="frameworkName != null and frameworkName != ''"> and framework_name like concat('%', #{frameworkName}, '%')</if>
             <if test="status != null and status != ''"> and status = #{status}</if>
         </where>
-        order by create_time desc, id desc
+        order by create_time desc, framework_id desc
     </select>
 
-    <insert id="insertQualityFramework" parameterType="TdwQualityFramework" useGeneratedKeys="true" keyProperty="id">
+    <select id="selectLatestByBidId" parameterType="Long" resultMap="TdwQualityFrameworkResult">
+        <include refid="selectQualityFrameworkVo"/>
+        where bid_id = #{bidId} and del_flag = '0'
+        order by update_time desc, framework_id desc
+        limit 1
+    </select>
+
+    <insert id="insertQualityFramework" parameterType="TdwQualityFramework" useGeneratedKeys="true" keyProperty="id" keyColumn="framework_id">
         insert into tdw_quality_framework
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="bidId != null">bid_id,</if>
             <if test="frameworkName != null">framework_name,</if>
             <if test="description != null">description,</if>
             <if test="fileName != null">file_name,</if>
@@ -62,6 +72,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="delFlag != null">del_flag,</if>
         </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="bidId != null">#{bidId},</if>
             <if test="frameworkName != null">#{frameworkName},</if>
             <if test="description != null">#{description},</if>
             <if test="fileName != null">#{fileName},</if>
@@ -83,6 +94,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         update tdw_quality_framework
         <trim prefix="SET" suffixOverrides=",">
             <if test="frameworkName != null">framework_name = #{frameworkName},</if>
+            <if test="bidId != null">bid_id = #{bidId},</if>
             <if test="description != null">description = #{description},</if>
             <if test="fileName != null">file_name = #{fileName},</if>
             <if test="originalName != null">original_name = #{originalName},</if>
@@ -94,18 +106,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>
         </trim>
-        where id = #{id}
+        where framework_id = #{id}
     </update>
 
     <update id="updateItemCount" parameterType="Long">
         update tdw_quality_framework
         set item_count = (select count(1) from tdw_quality_item where framework_id = #{id} and del_flag = '0'),
             update_time = now()
-        where id = #{id}
+        where framework_id = #{id}
     </update>
 
     <delete id="deleteQualityFrameworkByIds" parameterType="Long">
-        update tdw_quality_framework set del_flag = '2', update_time = now() where id in
+        update tdw_quality_framework set del_flag = '2', update_time = now() where framework_id in
         <foreach collection="array" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>

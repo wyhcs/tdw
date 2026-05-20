@@ -12,9 +12,13 @@ public interface TdwTenderFileMapper
 
     List<TdwTenderFile> selectByBidId(Long bidId);
 
+    TdwTenderFile selectLatestByBidIdAndStage(@Param("bidId") Long bidId, @Param("fileStage") String fileStage);
+
     List<TdwBids> selectTenderBidList(TdwBids tdwBids);
 
     int insertTenderFile(TdwTenderFile tenderFile);
+
+    int updateTenderFileStorage(TdwTenderFile tenderFile);
 
     int updateParseStatus(@Param("id") Long id, @Param("parseStatus") String parseStatus, @Param("parseReportId") Long parseReportId);
 

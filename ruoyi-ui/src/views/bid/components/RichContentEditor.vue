@@ -415,6 +415,18 @@ export default {
         this.renderMermaidNodes()
       })
     },
+    setExternalStreamingText(text) {
+      if (!this.editor || !this.selectedOutline) return false
+      this.rendering = true
+      this.editor.commands.setContent(this.textToParagraphs(text) || '<p></p>', false)
+      this.rendering = false
+      this.dirty = false
+      this.selectionMenu.visible = false
+      this.imageButton.visible = false
+      this.hideTableMenu()
+      this.renderMermaidNodes()
+      return true
+    },
     handleSelectionChange(selection) {
       this.imageButton.visible = false
       if (!selection || selection.empty || !this.editor) {

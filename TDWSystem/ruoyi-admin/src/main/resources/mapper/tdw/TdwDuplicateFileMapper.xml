@@ -8,12 +8,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="id" column="id" />
         <result property="taskId" column="task_id" />
         <result property="bidId" column="bid_id" />
+        <result property="fileRole" column="file_role" />
         <result property="fileName" column="file_name" />
         <result property="originalName" column="original_name" />
         <result property="fileUrl" column="file_url" />
         <result property="fileSize" column="file_size" />
         <result property="fileType" column="file_type" />
         <result property="parseStatus" column="parse_status" />
+        <result property="extractedText" column="extracted_text" />
+        <result property="enabled" column="enabled" />
         <result property="createBy" column="create_by" />
         <result property="createTime" column="create_time" />
         <result property="updateBy" column="update_by" />
@@ -23,8 +26,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectDuplicateFileVo">
-        select id, task_id, bid_id, file_name, original_name, file_url, file_size, file_type, parse_status,
-               create_by, create_time, update_by, update_time, remark, del_flag
+        select id, task_id, bid_id, file_role, file_name, original_name, file_url, file_size, file_type, parse_status,
+               extracted_text, enabled, create_by, create_time, update_by, update_time, remark, del_flag
         from tdw_duplicate_file
     </sql>
 
@@ -33,22 +36,69 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where id = #{id} and del_flag = '0'
     </select>
 
+    <select id="selectSourceFileByTaskId" parameterType="Long" resultMap="TdwDuplicateFileResult">
+        <include refid="selectDuplicateFileVo"/>
+        where task_id = #{taskId} and file_role = 'source' and del_flag = '0'
+        order by create_time desc, id desc
+        limit 1
+    </select>
+
+    <select id="selectCompareFilesByTaskId" parameterType="Long" resultMap="TdwDuplicateFileResult">
+        <include refid="selectDuplicateFileVo"/>
+        where task_id = #{taskId} and file_role = 'compare' and del_flag = '0' and ifnull(enabled, '1') = '1'
+        order by create_time asc, id asc
+    </select>
+
+    <select id="countCompareFilesByTaskId" parameterType="Long" resultType="int">
+        select count(1)
+        from tdw_duplicate_file
+        where task_id = #{taskId} and file_role = 'compare' and del_flag = '0'
+    </select>
+
     <select id="selectDuplicateFileList" parameterType="TdwDuplicateFile" resultMap="TdwDuplicateFileResult">
         <include refid="selectDuplicateFileVo"/>
         <where>
             del_flag = '0'
             <if test="taskId != null"> and task_id = #{taskId}</if>
             <if test="bidId != null"> and bid_id = #{bidId}</if>
+            <if test="fileRole != null and fileRole != ''"> and file_role = #{fileRole}</if>
+            <if test="enabled != null and enabled != ''"> and enabled = #{enabled}</if>
         </where>
-        order by create_time desc, id desc
+        order by field(file_role, 'source', 'compare'), create_time asc, id asc
     </select>
 
     <insert id="insertDuplicateFile" parameterType="TdwDuplicateFile" useGeneratedKeys="true" keyProperty="id">
-        insert into tdw_duplicate_file(task_id, bid_id, file_name, original_name, file_url, file_size, file_type, parse_status,
-                                       create_by, create_time, update_by, update_time, remark, del_flag)
-        values(#{taskId}, #{bidId}, #{fileName}, #{originalName}, #{fileUrl}, #{fileSize}, #{fileType}, #{parseStatus},
-               #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
+        insert into tdw_duplicate_file(task_id, bid_id, file_role, file_name, original_name, file_url, file_size, file_type,
+                                       parse_status, extracted_text, enabled, create_by, create_time, update_by, update_time, remark, del_flag)
+        values(#{taskId}, #{bidId}, #{fileRole}, #{fileName}, #{originalName}, #{fileUrl}, #{fileSize}, #{fileType},
+               #{parseStatus}, #{extractedText}, #{enabled}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
     </insert>
+
+    <update id="updateDuplicateFile" parameterType="TdwDuplicateFile">
+        update tdw_duplicate_file
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="fileRole != null">file_role = #{fileRole},</if>
+            <if test="fileName != null">file_name = #{fileName},</if>
+            <if test="originalName != null">original_name = #{originalName},</if>
+            <if test="fileUrl != null">file_url = #{fileUrl},</if>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="fileType != null">file_type = #{fileType},</if>
+            <if test="parseStatus != null">parse_status = #{parseStatus},</if>
+            <if test="extractedText != null">extracted_text = #{extractedText},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteDuplicateFileByIds" parameterType="Long">
+        update tdw_duplicate_file set del_flag = '2', update_time = now() where id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
 
     <delete id="deleteByTaskIds" parameterType="Long">
         update tdw_duplicate_file set del_flag = '2', update_time = now() where task_id in

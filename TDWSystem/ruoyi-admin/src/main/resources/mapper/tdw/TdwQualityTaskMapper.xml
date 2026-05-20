@@ -9,6 +9,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="taskName" column="task_name" />
         <result property="bidId" column="bid_id" />
         <result property="frameworkId" column="framework_id" />
+        <result property="bidFileId" column="bid_file_id" />
         <result property="sourceModule" column="source_module" />
         <result property="status" column="status" />
         <result property="totalCount" column="total_count" />
@@ -24,7 +25,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectQualityTaskVo">
-        select id, task_name, bid_id, framework_id, source_module, status, total_count, issue_count, start_time, finish_time,
+        select id, task_name, bid_id, framework_id, bid_file_id, source_module, status, total_count, issue_count, start_time, finish_time,
                create_by, create_time, update_by, update_time, remark, del_flag
         from tdw_quality_task
     </sql>
@@ -48,9 +49,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 
     <insert id="insertQualityTask" parameterType="TdwQualityTask" useGeneratedKeys="true" keyProperty="id">
-        insert into tdw_quality_task(task_name, bid_id, framework_id, source_module, status, total_count, issue_count,
+        insert into tdw_quality_task(task_name, bid_id, framework_id, bid_file_id, source_module, status, total_count, issue_count,
                                      start_time, finish_time, create_by, create_time, update_by, update_time, remark, del_flag)
-        values(#{taskName}, #{bidId}, #{frameworkId}, #{sourceModule}, #{status}, #{totalCount}, #{issueCount},
+        values(#{taskName}, #{bidId}, #{frameworkId}, #{bidFileId}, #{sourceModule}, #{status}, #{totalCount}, #{issueCount},
                #{startTime}, #{finishTime}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{delFlag})
     </insert>
 
@@ -60,6 +61,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="taskName != null">task_name = #{taskName},</if>
             <if test="bidId != null">bid_id = #{bidId},</if>
             <if test="frameworkId != null">framework_id = #{frameworkId},</if>
+            <if test="bidFileId != null">bid_file_id = #{bidFileId},</if>
             <if test="sourceModule != null">source_module = #{sourceModule},</if>
             <if test="status != null">status = #{status},</if>
             <if test="totalCount != null">total_count = #{totalCount},</if>

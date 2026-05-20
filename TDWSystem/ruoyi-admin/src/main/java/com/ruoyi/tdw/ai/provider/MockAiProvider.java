@@ -128,6 +128,9 @@ public class MockAiProvider implements AiProvider
         if (type.contains("extra-attachment")) {
             return extractExtraAttachment(text);
         }
+        if (type.contains("gallery-image-summary")) {
+            return mockGalleryImageSummary(text);
+        }
         if (type.contains("-field-")) {
             return extractPlanField(text, type);
         }
@@ -141,6 +144,36 @@ public class MockAiProvider implements AiProvider
             return extractFullScoreItems(text);
         }
         return truncatePlain(text, 1200);
+    }
+
+    private String mockGalleryImageSummary(String text)
+    {
+        String sourceType = afterMarkerLine(text, "图片来源");
+        String originalName = afterMarkerLine(text, "原始文件名");
+        String defaultTitle = afterMarkerLine(text, "默认标题");
+        String titleSeed = defaultTitle.length() > 0 ? defaultTitle : originalName;
+        if (titleSeed.length() == 0) {
+            titleSeed = "图库图片";
+        }
+        String title = trimChineseLength(titleSeed.replaceAll("\\.[^.]+$", ""), 28);
+        List<String> keywords = new ArrayList<String>();
+        if (sourceType.contains("文档抽图") || text.contains("文档抽图")) {
+            keywords.add("文档抽图");
+            keywords.add("标书素材");
+            keywords.add("图片引用");
+        } else {
+            keywords.add("上传图片");
+            keywords.add("私人图库");
+            keywords.add("标书素材");
+        }
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        result.put("title", title);
+        result.put("keywords", keywords);
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (JsonProcessingException e) {
+            return "{\"title\":\"" + title + "\",\"keywords\":[\"标书素材\"]}";
+        }
     }
 
     private String extractPlanField(String text, String taskType)

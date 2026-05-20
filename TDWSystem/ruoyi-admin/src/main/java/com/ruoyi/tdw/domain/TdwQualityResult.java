@@ -15,6 +15,8 @@ public class TdwQualityResult extends BaseEntity
     private Long outlineId;
     private Long contentId;
     private Long itemId;
+    private String itemName;
+    private String itemType;
     private String issueType;
     private String severity;
     private String issueTitle;
@@ -35,6 +37,10 @@ public class TdwQualityResult extends BaseEntity
     public void setContentId(Long contentId) { this.contentId = contentId; }
     public Long getItemId() { return itemId; }
     public void setItemId(Long itemId) { this.itemId = itemId; }
+    public String getItemName() { return itemName; }
+    public void setItemName(String itemName) { this.itemName = itemName; }
+    public String getItemType() { return itemType; }
+    public void setItemType(String itemType) { this.itemType = itemType; }
     public String getIssueType() { return issueType; }
     public void setIssueType(String issueType) { this.issueType = issueType; }
     public String getSeverity() { return severity; }

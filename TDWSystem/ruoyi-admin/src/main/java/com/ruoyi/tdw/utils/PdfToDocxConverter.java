@@ -14,15 +14,39 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PdfToDocxConverter {
+    public static void convertPdfToDocx(String pdfPath, String docxPath)
+            throws IOException {
+        String rawText = extractTextWithPdfBox(pdfPath);
+        List<String> paragraphs = processRawText(rawText);
+        createDocxWithFormattedParagraphs(paragraphs, docxPath);
+    }
+
     public static void convertPdfToDocx(String pdfPath, String docxPath, String pdftotext)
             throws IOException, InterruptedException {
-        // 1. 使用pdftotext提取文本
-        String rawText = extractTextWithPdftotext(pdfPath, pdftotext);
+        // 1. 优先使用外部 pdftotext；未配置或不可用时回退到 PDFBox，便于本地开发环境运行。
+        String rawText;
+        if (pdftotext == null || pdftotext.trim().length() == 0) {
+            rawText = extractTextWithPdfBox(pdfPath);
+        } else {
+            try {
+                rawText = extractTextWithPdftotext(pdfPath, pdftotext);
+            } catch (IOException e) {
+                rawText = extractTextWithPdfBox(pdfPath);
+            }
+        }
         // 2. 处理文本，识别段落
-        List<String> paragraphs = processRawText(rawText.toString());
+        List<String> paragraphs = processRawText(rawText);
 
         // 3. 创建DOCX文档并添加格式化段落
         createDocxWithFormattedParagraphs(paragraphs, docxPath);
+    }
+
+    public static String extractTextWithPdfBox(String pdfPath) throws IOException {
+        try (PDDocument document = PDDocument.load(new File(pdfPath))) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            return stripper.getText(document);
+        }
     }
 
     public static String extractTextWithPdftotext(String pdfPath, String pdftotext)

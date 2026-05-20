@@ -28,7 +28,8 @@ export function createDuplicateTask(data) {
     url: '/tdw/duplicate/task/create',
     method: 'post',
     data,
-    headers: { 'Content-Type': 'multipart/form-data' }
+    timeout: 600000,
+    headers: { 'Content-Type': 'multipart/form-data', repeatSubmit: false }
   })
 }
 
@@ -37,14 +38,35 @@ export function uploadDuplicateFile(taskId, data) {
     url: '/tdw/duplicate/task/' + taskId + '/upload',
     method: 'post',
     data,
-    headers: { 'Content-Type': 'multipart/form-data' }
+    timeout: 600000,
+    headers: { 'Content-Type': 'multipart/form-data', repeatSubmit: false }
   })
 }
 
-export function runDuplicateTask(taskId) {
+export function uploadDuplicateFiles(taskId, data) {
+  return request({
+    url: '/tdw/duplicate/task/' + taskId + '/uploadBatch',
+    method: 'post',
+    data,
+    timeout: 600000,
+    headers: { 'Content-Type': 'multipart/form-data', repeatSubmit: false }
+  })
+}
+
+export function updateDuplicateLibraries(taskId, data) {
+  return request({
+    url: '/tdw/duplicate/task/' + taskId + '/libraries',
+    method: 'post',
+    data
+  })
+}
+
+export function runDuplicateTask(taskId, data) {
   return request({
     url: '/tdw/duplicate/task/' + taskId + '/run',
-    method: 'post'
+    method: 'post',
+    data,
+    timeout: 600000
   })
 }
 
@@ -63,10 +85,32 @@ export function listDuplicateFiles(query) {
   })
 }
 
+export function deleteDuplicateFile(ids) {
+  return request({
+    url: '/tdw/duplicate/file/' + ids,
+    method: 'delete'
+  })
+}
+
 export function listDuplicateResults(query) {
   return request({
     url: '/tdw/duplicate/result/list',
     method: 'get',
     params: query
+  })
+}
+
+export function getDuplicateReport(taskId) {
+  return request({
+    url: '/tdw/duplicate/task/' + taskId + '/report',
+    method: 'get'
+  })
+}
+
+export function exportDuplicateReport(taskId) {
+  return request({
+    url: '/tdw/duplicate/task/' + taskId + '/exportReport',
+    method: 'post',
+    timeout: 600000
   })
 }

@@ -9,6 +9,8 @@ public interface TdwQualityFrameworkMapper
 
     List<TdwQualityFramework> selectQualityFrameworkList(TdwQualityFramework query);
 
+    TdwQualityFramework selectLatestByBidId(Long bidId);
+
     int insertQualityFramework(TdwQualityFramework framework);
 
     int updateQualityFramework(TdwQualityFramework framework);

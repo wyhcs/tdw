@@ -38,7 +38,16 @@ export function uploadTenderFile(bidId, file) {
 export function parseTenderFile(tenderFileId) {
   return request({
     url: '/tdw/tender/parse/' + tenderFileId,
-    method: 'post'
+    method: 'post',
+    timeout: 600000
+  })
+}
+
+export function parseTenderInterpretation(tenderFileId) {
+  return request({
+    url: '/tdw/tender/parse/interpretation/' + tenderFileId,
+    method: 'post',
+    timeout: 600000
   })
 }
 
@@ -66,6 +75,38 @@ export function getTenderReportByFile(tenderFileId) {
 export function getLatestTenderReport(bidId) {
   return request({
     url: '/tdw/tender/report/latest/' + bidId,
+    method: 'get'
+  })
+}
+
+export function getLatestBidDocument(bidId) {
+  return request({
+    url: '/tdw/tender/bid-document/latest/' + bidId,
+    method: 'get'
+  })
+}
+
+export function generateBidDocument(bidId, data) {
+  return request({
+    url: '/tdw/tender/bid-document/generate/' + bidId,
+    method: 'post',
+    data: data || {},
+    timeout: 300000
+  })
+}
+
+export function saveBidDocument(fileId, data) {
+  return request({
+    url: '/tdw/tender/bid-document/save/' + fileId,
+    method: 'post',
+    data: data || {},
+    timeout: 120000
+  })
+}
+
+export function getOnlyOfficeConfig(fileId) {
+  return request({
+    url: '/tdw/tender/bid-document/onlyoffice/config/' + fileId,
     method: 'get'
   })
 }

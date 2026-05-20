@@ -19,6 +19,9 @@ public class AiProviderFactory
     @Value("${tdw.ai.provider:glm}")
     private String providerName;
 
+    @Value("${tdw.ai.allow-mock:false}")
+    private boolean allowMock;
+
     @Autowired
     public AiProviderFactory(List<AiProvider> providerList)
     {
@@ -29,6 +32,9 @@ public class AiProviderFactory
 
     public AiProvider getProvider()
     {
+        if ("mock".equalsIgnoreCase(providerName) && !allowMock) {
+            throw new IllegalStateException("Mock AI provider is disabled. Configure tdw.ai.provider=glm and TDW_GLM_API_KEY for real model calls.");
+        }
         AiProvider provider = providers.get(providerName);
         if (provider == null) {
             throw new IllegalStateException("AI provider unavailable: " + providerName);

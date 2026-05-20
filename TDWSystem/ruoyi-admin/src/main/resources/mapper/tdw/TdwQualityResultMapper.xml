@@ -11,6 +11,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="outlineId" column="outline_id" />
         <result property="contentId" column="content_id" />
         <result property="itemId" column="item_id" />
+        <result property="itemName" column="item_name" />
+        <result property="itemType" column="item_type" />
         <result property="issueType" column="issue_type" />
         <result property="severity" column="severity" />
         <result property="issueTitle" column="issue_title" />
@@ -26,29 +28,31 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectQualityResultVo">
-        select id, task_id, bid_id, outline_id, content_id, item_id, issue_type, severity, issue_title, issue_desc,
-               suggestion, status, create_by, create_time, update_by, update_time, remark, del_flag
-        from tdw_quality_result
+        select r.id, r.task_id, r.bid_id, r.outline_id, r.content_id, r.item_id, i.item_name, i.item_type,
+               r.issue_type, r.severity, r.issue_title, r.issue_desc, r.suggestion, r.status,
+               r.create_by, r.create_time, r.update_by, r.update_time, r.remark, r.del_flag
+        from tdw_quality_result r
+        left join tdw_quality_item i on i.id = r.item_id
     </sql>
 
     <select id="selectQualityResultById" parameterType="Long" resultMap="TdwQualityResultResult">
         <include refid="selectQualityResultVo"/>
-        where id = #{id} and del_flag = '0'
+        where r.id = #{id} and r.del_flag = '0'
     </select>
 
     <select id="selectQualityResultList" parameterType="TdwQualityResult" resultMap="TdwQualityResultResult">
         <include refid="selectQualityResultVo"/>
         <where>
-            del_flag = '0'
-            <if test="taskId != null"> and task_id = #{taskId}</if>
-            <if test="bidId != null"> and bid_id = #{bidId}</if>
-            <if test="outlineId != null"> and outline_id = #{outlineId}</if>
-            <if test="contentId != null"> and content_id = #{contentId}</if>
-            <if test="issueType != null and issueType != ''"> and issue_type = #{issueType}</if>
-            <if test="severity != null and severity != ''"> and severity = #{severity}</if>
-            <if test="status != null and status != ''"> and status = #{status}</if>
+            r.del_flag = '0'
+            <if test="taskId != null"> and r.task_id = #{taskId}</if>
+            <if test="bidId != null"> and r.bid_id = #{bidId}</if>
+            <if test="outlineId != null"> and r.outline_id = #{outlineId}</if>
+            <if test="contentId != null"> and r.content_id = #{contentId}</if>
+            <if test="issueType != null and issueType != ''"> and r.issue_type = #{issueType}</if>
+            <if test="severity != null and severity != ''"> and r.severity = #{severity}</if>
+            <if test="status != null and status != ''"> and r.status = #{status}</if>
         </where>
-        order by severity desc, outline_id asc, content_id asc, id asc
+        order by i.sort_num asc, r.id asc
     </select>
 
     <insert id="insertQualityResult" parameterType="TdwQualityResult" useGeneratedKeys="true" keyProperty="id">

@@ -68,20 +68,15 @@ public class TdwKnowledgeController extends BaseController
     @GetMapping("/file/list")
     public AjaxResult fileList(TdwKnowledgeFile query)
     {
-        System.out.println("######### list list");
-        System.out.println(query);
         return success(knowledgeService.selectKnowledgeFileList(query));
     }
 
     @PostMapping("/file/upload")
-    public AjaxResult upload(@RequestParam(value = "file", required = false) MultipartFile file,
+    public AjaxResult upload(@RequestParam("file") MultipartFile file,
                              @RequestParam("knowledgeId") Long knowledgeId,
                              @RequestParam(value = "fileUsage", required = false) String fileUsage,
                              @RequestParam(value = "isTemplate", required = false) String isTemplate)
     {
-        System.out.println("##################");
-        System.out.println(knowledgeId);
-        System.out.println(file);
         return success(knowledgeService.uploadKnowledgeFile(file, knowledgeId, fileUsage, isTemplate));
     }
 
@@ -91,8 +86,8 @@ public class TdwKnowledgeController extends BaseController
                                     @RequestParam(value = "galleryId", required = false) Long galleryId) throws Exception
     {
         TdwKnowledgeFile knowledgeFile = knowledgeService.uploadKnowledgeFile(file, knowledgeId, "material", "0");
-        knowledgeService.extractImagesMock(knowledgeFile.getKnowledgeFileId());
         if (galleryId != null) {
+            knowledgeService.extractImagesMock(knowledgeFile.getKnowledgeFileId());
             toolService.extractDocImage(galleryId, file);
         }
         return success(knowledgeFile);
@@ -101,7 +96,19 @@ public class TdwKnowledgeController extends BaseController
     @PostMapping("/file/{knowledgeFileId}/parse")
     public AjaxResult parse(@PathVariable Long knowledgeFileId)
     {
-        return toAjax(knowledgeService.parseFileMock(knowledgeFileId));
+        return toAjax(knowledgeService.parseKnowledgeFile(knowledgeFileId));
+    }
+
+    @PutMapping("/file/rename")
+    public AjaxResult renameFile(@RequestBody TdwKnowledgeFile knowledgeFile)
+    {
+        return toAjax(knowledgeService.renameKnowledgeFile(knowledgeFile));
+    }
+
+    @DeleteMapping("/file/{knowledgeFileId}")
+    public AjaxResult removeFile(@PathVariable Long knowledgeFileId)
+    {
+        return toAjax(knowledgeService.deleteKnowledgeFile(knowledgeFileId));
     }
 
     @PostMapping("/file/{knowledgeFileId}/extractImages")

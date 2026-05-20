@@ -11,5 +11,6 @@ public interface TdwKnowledgeFileMapper
     int insertKnowledgeFile(TdwKnowledgeFile knowledgeFile);
     int updateKnowledgeFile(TdwKnowledgeFile knowledgeFile);
     int deleteKnowledgeFilesByKnowledgeId(@Param("knowledgeId") Long knowledgeId);
+    int deleteKnowledgeFileById(@Param("knowledgeFileId") Long knowledgeFileId);
     List<TdwKnowledgeFile> selectTemplateFiles(TdwKnowledgeFile query);
 }

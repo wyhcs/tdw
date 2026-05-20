@@ -5,12 +5,15 @@
         <id property="knowledgeFileId" column="knowledge_file_id"/>
         <result property="knowledgeId" column="knowledge_id"/>
         <result property="fileName" column="file_name"/>
+        <result property="originalName" column="original_name"/>
+        <result property="fileUrl" column="file_url"/>
         <result property="fileType" column="file_type"/>
         <result property="fileSize" column="file_size"/>
         <result property="fileUsage" column="file_usage"/>
         <result property="isTemplate" column="is_template"/>
         <result property="parseStatus" column="parse_status"/>
         <result property="imageStatus" column="image_status"/>
+        <result property="chunkCount" column="chunk_count"/>
         <result property="createBy" column="create_by"/>
         <result property="createTime" column="create_time"/>
         <result property="updateBy" column="update_by"/>
@@ -19,8 +22,8 @@
         <result property="delFlag" column="del_flag"/>
     </resultMap>
     <sql id="selectFileVo">
-        select knowledge_file_id, knowledge_id, file_name, file_type, file_size, file_usage, is_template,
-               parse_status, image_status, create_by, create_time, update_by, update_time, remark, del_flag
+        select knowledge_file_id, knowledge_id, file_name, original_name, file_url, file_type, file_size, file_usage, is_template,
+               parse_status, image_status, chunk_count, create_by, create_time, update_by, update_time, remark, del_flag
         from tdw_knowledge_file
     </sql>
     <select id="selectKnowledgeFileList" resultMap="TdwKnowledgeFileResult">
@@ -46,19 +49,22 @@
         order by create_time desc, knowledge_file_id desc
     </select>
     <insert id="insertKnowledgeFile" parameterType="TdwKnowledgeFile" useGeneratedKeys="true" keyProperty="knowledgeFileId">
-        insert into tdw_knowledge_file(knowledge_id, file_name, file_type, file_size, file_usage, is_template,
-        parse_status, image_status, create_by, create_time, remark, del_flag)
-        values(#{knowledgeId}, #{fileName}, #{fileType}, #{fileSize}, #{fileUsage}, #{isTemplate},
-        #{parseStatus}, #{imageStatus}, #{createBy}, #{createTime}, #{remark}, '0')
+        insert into tdw_knowledge_file(knowledge_id, file_name, original_name, file_url, file_type, file_size, file_usage, is_template,
+        parse_status, image_status, chunk_count, create_by, create_time, remark, del_flag)
+        values(#{knowledgeId}, #{fileName}, #{originalName}, #{fileUrl}, #{fileType}, #{fileSize}, #{fileUsage}, #{isTemplate},
+        #{parseStatus}, #{imageStatus}, #{chunkCount}, #{createBy}, #{createTime}, #{remark}, '0')
     </insert>
     <update id="updateKnowledgeFile" parameterType="TdwKnowledgeFile">
         update tdw_knowledge_file
         <trim prefix="set" suffixOverrides=",">
             <if test="fileName != null and fileName != ''">file_name = #{fileName},</if>
+            <if test="originalName != null and originalName != ''">original_name = #{originalName},</if>
+            <if test="fileUrl != null and fileUrl != ''">file_url = #{fileUrl},</if>
             <if test="fileUsage != null and fileUsage != ''">file_usage = #{fileUsage},</if>
             <if test="isTemplate != null and isTemplate != ''">is_template = #{isTemplate},</if>
             <if test="parseStatus != null and parseStatus != ''">parse_status = #{parseStatus},</if>
             <if test="imageStatus != null and imageStatus != ''">image_status = #{imageStatus},</if>
+            <if test="chunkCount != null">chunk_count = #{chunkCount},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
             <if test="remark != null">remark = #{remark},</if>
@@ -67,5 +73,8 @@
     </update>
     <update id="deleteKnowledgeFilesByKnowledgeId" parameterType="Long">
         update tdw_knowledge_file set del_flag = '2' where knowledge_id = #{knowledgeId}
+    </update>
+    <update id="deleteKnowledgeFileById" parameterType="Long">
+        update tdw_knowledge_file set del_flag = '2', update_time = now() where knowledge_file_id = #{knowledgeFileId}
     </update>
 </mapper>

@@ -16,8 +16,10 @@ public interface ITdwKnowledgeService
 
     List<TdwKnowledgeFile> selectKnowledgeFileList(TdwKnowledgeFile query);
     TdwKnowledgeFile uploadKnowledgeFile(MultipartFile file, Long knowledgeId, String fileUsage, String isTemplate);
-    int parseFileMock(Long knowledgeFileId);
+    int parseKnowledgeFile(Long knowledgeFileId);
     int extractImagesMock(Long knowledgeFileId);
+    int renameKnowledgeFile(TdwKnowledgeFile knowledgeFile);
+    int deleteKnowledgeFile(Long knowledgeFileId);
 
     List<TdwKnowledgeFile> selectTemplateFiles(Long knowledgeId);
     List<TdwKnowledgeChunk> selectKnowledgeChunks(TdwKnowledgeChunk query);

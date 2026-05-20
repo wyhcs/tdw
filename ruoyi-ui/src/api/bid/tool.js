@@ -1,5 +1,34 @@
 import request from '@/utils/request'
 
+export function listConvertRecords(query) {
+  return request({
+    url: '/tdw/tool/convert/list',
+    method: 'get',
+    params: query
+  })
+}
+
+export function uploadPdfToWord(data) {
+  return request({
+    url: '/tdw/tool/pdfToWord',
+    method: 'post',
+    data,
+    timeout: 120000,
+    headers: { repeatSubmit: false, 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+export function deleteConvertRecord(ids) {
+  return request({
+    url: '/tdw/tool/convert/' + ids,
+    method: 'delete'
+  })
+}
+
+export function convertRecordDownloadUrl(id) {
+  return process.env.VUE_APP_BASE_API + '/tdw/tool/convert/download/' + id
+}
+
 export function listGalleries(query) {
   return request({
     url: '/tdw/tool/gallery/list',

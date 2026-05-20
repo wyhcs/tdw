@@ -40,6 +40,14 @@ export function parseKnowledgeFile(knowledgeFileId) {
   return request({ url: '/tdw/knowledge/file/' + knowledgeFileId + '/parse', method: 'post' })
 }
 
+export function renameKnowledgeFile(data) {
+  return request({ url: '/tdw/knowledge/file/rename', method: 'put', data })
+}
+
+export function delKnowledgeFile(knowledgeFileId) {
+  return request({ url: '/tdw/knowledge/file/' + knowledgeFileId, method: 'delete' })
+}
+
 export function extractKnowledgeImages(knowledgeFileId) {
   return request({ url: '/tdw/knowledge/file/' + knowledgeFileId + '/extractImages', method: 'post' })
 }

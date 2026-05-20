@@ -60,7 +60,10 @@
                       :title="chapter.title"
                       @click.stop="selectGeneratedNode(chapter)"
                     >{{ chapter.title }}</strong>
-                    <em><b class="success">{{ nodeGeneratedWords(chapter) }}</b> / {{ nodeTargetWords(chapter) }}</em>
+                    <em>
+                      <i v-if="isNodeGenerating(chapter)" class="el-icon-loading generating-count-icon" />
+                      <template v-else><b class="success">{{ nodeGeneratedWords(chapter) }}</b> / {{ nodeTargetWords(chapter) }}</template>
+                    </em>
                   </div>
                   <div v-show="!isPreviewCollapsed(chapter.id)">
                     <div v-for="section in chapter.children || []" :key="section.id" class="preview-node level-2">
@@ -72,7 +75,10 @@
                           :title="section.title"
                           @click.stop="selectGeneratedNode(section)"
                         >{{ section.title }}</span>
-                        <em><b class="success">{{ nodeGeneratedWords(section) }}</b> / {{ nodeTargetWords(section) }}</em>
+                        <em>
+                          <i v-if="isNodeGenerating(section)" class="el-icon-loading generating-count-icon" />
+                          <template v-else><b class="success">{{ nodeGeneratedWords(section) }}</b> / {{ nodeTargetWords(section) }}</template>
+                        </em>
                       </div>
                       <div v-show="!isPreviewCollapsed(section.id)">
                         <div v-for="item in section.children || []" :key="item.id" class="preview-node level-3">
@@ -83,7 +89,10 @@
                             :title="item.title"
                             @click.stop="selectGeneratedNode(item)"
                           >{{ item.title }}</span>
-                          <em><b class="success">{{ nodeGeneratedWords(item) }}</b> / {{ nodeTargetWords(item) }}</em>
+                          <em>
+                            <i v-if="isNodeGenerating(item)" class="el-icon-loading generating-count-icon" />
+                            <template v-else><b class="success">{{ nodeGeneratedWords(item) }}</b> / {{ nodeTargetWords(item) }}</template>
+                          </em>
                         </div>
                       </div>
                     </div>
@@ -94,11 +103,22 @@
             </div>
           </div>
           <div class="preview-actions">
-            <el-button v-if="generatingContent" class="generating-button" type="primary" :loading="true" disabled>生成中...</el-button>
-            <template v-else>
-              <el-button plain @click="$router.push('/bid/plan/create')">重编全文</el-button>
-              <el-button type="primary" @click="startContentGenerate">开始生成</el-button>
-            </template>
+            <div class="action-row">
+              <el-button class="export-all-button" type="primary" :loading="exportingFull" @click="exportFullContent">导出全文</el-button>
+              <el-dropdown trigger="click" placement="top" @command="cleanFullContent">
+                <el-button class="square-action-button" :loading="cleaningContent" icon="el-icon-brush" />
+                <el-dropdown-menu slot="dropdown">
+                  <el-dropdown-item command="chart">清除图表</el-dropdown-item>
+                  <el-dropdown-item command="table">清除表格</el-dropdown-item>
+                  <el-dropdown-item command="image">清除图片</el-dropdown-item>
+                  <el-dropdown-item command="text">清空正文</el-dropdown-item>
+                </el-dropdown-menu>
+              </el-dropdown>
+              <el-tooltip content="重编全文" placement="top">
+                <el-button class="square-action-button" :loading="regeneratingFull" icon="el-icon-refresh-right" @click="regenerateAllContent" />
+              </el-tooltip>
+            </div>
+            <el-button class="continue-button" type="primary" :loading="continuingContent" @click="continueGenerateContent">继续生成</el-button>
           </div>
         </div>
         <aside v-if="!selectedContentNode" class="preview-hero">
@@ -172,6 +192,7 @@
             </div>
           </div>
           <div class="content-editor-shell rich-editor-shell">
+            <div v-show="selectedStreamingText" ref="streamingPreview" class="streaming-preview"></div>
             <rich-content-editor
               ref="contentRichEditor"
               :bid-id="bidId"
@@ -471,7 +492,7 @@
 <script>
 import draggable from 'vuedraggable'
 import { exportPlanHtml, listBids } from '@/api/bid/bids'
-import { generateContentBlocks, listContentsByOutlines, saveRichContent } from '@/api/bid/contents'
+import { deleteContent, generateContentBlocks, listContentsByOutlines, saveRichContent, updateContent } from '@/api/bid/contents'
 import {
   addOutlineChild,
   addOutlineParagraph,
@@ -544,10 +565,17 @@ export default {
         writingStyle: 'general'
       },
       contentMap: {},
+      streamingTextMap: {},
+      streamingOutlineId: undefined,
       selectedContentNode: null,
       contentLoading: false,
       contentSaving: false,
       rewritingNodeId: undefined,
+      generatingOutlineIds: {},
+      continuingContent: false,
+      regeneratingFull: false,
+      exportingFull: false,
+      cleaningContent: false,
       exportingNodeId: undefined,
       exportDialogVisible: false,
       exportResult: {},
@@ -568,6 +596,18 @@ export default {
     },
     selectedContentLevel() {
       return Number(this.selectedContentNode && this.selectedContentNode.level)
+    },
+    selectedStreamingText() {
+      if (!this.selectedContentNode) return ''
+      const active = this.streamingOutlineId
+      if (active && this.isOutlineInsideNode(this.selectedContentNode, active)) {
+        return this.streamingTextMap[String(active)] || ''
+      }
+      const own = this.streamingTextMap[String(this.selectedContentNode.id)]
+      if (own) return own
+      const leaves = this.flattenLeaves([this.selectedContentNode])
+      const parts = leaves.map(leaf => this.streamingTextMap[String(leaf.id)] || '').filter(Boolean)
+      return parts.join('\n\n')
     },
     visibleChapterTitle() {
       return this.selectedContentLevel === 1 ? this.selectedContentNode : null
@@ -939,12 +979,22 @@ export default {
     confirmContentGenerate() {
       if (!this.bidId || this.generatingContent) return
       this.generateDialogVisible = false
+      return this.generateFullContent(false)
+    },
+    generateFullContent(isRegenerate) {
       this.generatingContent = true
+      this.regeneratingFull = !!isRegenerate
       finalizePlanOutline(this.bidId).then(() => {
         this.resetRichEditorDirty()
+        this.clearStreamingPreview()
+        this.generatingOutlineIds = {}
         this.flattenLeaves(this.tree).forEach(leaf => {
           this.$set(this.contentMap, leaf.id, [])
         })
+        const firstLeaf = this.firstContentNode(this.tree[0])
+        if (firstLeaf) {
+          this.selectedContentNode = firstLeaf
+        }
         return generateContentBlocks({
           bidId: this.bidId,
           scope: 'full',
@@ -973,6 +1023,61 @@ export default {
         this.$modal.msgSuccess('正文生成完成')
       }).finally(() => {
         this.generatingContent = false
+        this.regeneratingFull = false
+      })
+    },
+    regenerateAllContent() {
+      if (!this.bidId || this.generatingContent || this.regeneratingFull || this.continuingContent) return
+      this.$modal.confirm('确认重编全文正文内容吗？现有正文将被覆盖。').then(() => {
+        return this.generateFullContent(true)
+      }).catch(() => {})
+    },
+    continueGenerateContent() {
+      if (!this.bidId || this.generatingContent || this.continuingContent || this.regeneratingFull) return
+      const leaves = this.flattenLeaves(this.tree)
+      this.continuingContent = true
+      this.loadContentsForLeaves(leaves, true).then(() => {
+        const targets = leaves.filter(leaf => !this.isNodeGenerated(leaf))
+        if (!targets.length) {
+          this.$modal.msgSuccess('所有段落均已生成')
+          return Promise.resolve()
+        }
+        this.setGeneratingLeaves(targets)
+        return targets.reduce((promise, leaf) => {
+          return promise.then(() => this.generateSingleMissingLeaf(leaf))
+        }, Promise.resolve())
+      }).then(() => {
+        return this.loadOverview()
+      }).then(() => {
+        return this.loadAllGeneratedContents(true)
+      }).then(() => {
+        this.$modal.msgSuccess('继续生成完成')
+      }).finally(() => {
+        this.continuingContent = false
+        this.generatingOutlineIds = {}
+      })
+    },
+    setGeneratingLeaves(leaves) {
+      this.generatingOutlineIds = {}
+      ;(leaves || []).forEach(leaf => {
+        this.$set(this.generatingOutlineIds, String(leaf.id), true)
+      })
+    },
+    generateSingleMissingLeaf(leaf) {
+      if (!leaf) return Promise.resolve()
+      return generateContentBlocks({
+        bidId: this.bidId,
+        outlineId: leaf.id,
+        scope: 'selected',
+        mode: 'overwrite',
+        requirement: '请继续生成当前段标题正文内容，保持服务方案专业表达，并与上下级标题语义一致。',
+        writingStyle: this.generateSettings.writingStyle,
+        includeTable: false,
+        includeDiagram: false,
+        knowledgeFileIds: [],
+        knowledgeChunkIds: []
+      }, {
+        onGenerated: contents => this.applyGeneratedContents(contents)
       })
     },
     regenerateContentNode(node) {
@@ -980,6 +1085,7 @@ export default {
       this.rewritingNodeId = node.id
       const active = this.findTreeNode(this.tree, node.id) || node
       this.selectedContentNode = active
+      this.clearStreamingPreview()
       this.clearNodeContentMap(active)
       generateContentBlocks({
         bidId: this.bidId,
@@ -1021,6 +1127,79 @@ export default {
         this.exportingNodeId = undefined
       })
     },
+    exportFullContent() {
+      if (!this.bidId || this.exportingFull) return
+      this.exportingFull = true
+      exportPlanHtml({
+        bidId: this.bidId,
+        fileFormat: 'docx',
+        includeEmptyOutline: true
+      }).then(res => {
+        this.exportResult = res.data || {}
+        this.exportDialogVisible = true
+      }).finally(() => {
+        this.exportingFull = false
+      })
+    },
+    cleanFullContent(command) {
+      const labels = { chart: '清除图表', table: '清除表格', image: '清除图片', text: '清空正文' }
+      if (!command || this.cleaningContent) return
+      this.$modal.confirm('确认' + (labels[command] || '清理内容') + '吗？').then(() => {
+        this.cleaningContent = true
+        const leaves = this.flattenLeaves(this.tree)
+        return this.loadContentsForLeaves(leaves, true).then(() => {
+          const tasks = []
+          leaves.forEach(leaf => {
+            ;(this.contentMap[leaf.id] || []).forEach(block => {
+              const cleaned = this.cleanContentBlock(block, command)
+              if (!cleaned && block.id && String(block.id).indexOf('stream-') !== 0) {
+                tasks.push(deleteContent(block.id))
+              } else if (cleaned && cleaned.changed && block.id && String(block.id).indexOf('stream-') !== 0) {
+                tasks.push(updateContent(cleaned.block))
+              }
+            })
+          })
+          return Promise.all(tasks)
+        }).then(() => {
+          return this.loadAllGeneratedContents(true)
+        }).then(() => {
+          return this.loadOverview()
+        }).then(() => {
+          this.$modal.msgSuccess((labels[command] || '清理') + '完成')
+        })
+      }).finally(() => {
+        this.cleaningContent = false
+      }).catch(() => {
+        this.cleaningContent = false
+      })
+    },
+    cleanContentBlock(block, command) {
+      if (!block) return null
+      if (command === 'text') return null
+      const type = Number(block.contentType)
+      const data = this.parseContent(block)
+      if (command === 'table' && type === 2) return null
+      if (command === 'image' && type === 3 && (data.imageUrl || data.url || data.src)) return null
+      if (command === 'chart' && type === 3 && !(data.imageUrl || data.url || data.src)) return null
+      if (type !== 1 || !data.html) {
+        return { block, changed: false }
+      }
+      let html = data.html
+      if (command === 'table') {
+        html = html.replace(/<table[\s\S]*?<\/table>/gi, '')
+      } else if (command === 'image') {
+        html = html.replace(/<img\b[\s\S]*?>/gi, '')
+      } else if (command === 'chart') {
+        html = html.replace(/<div\b[^>]*data-type=["']mermaid["'][\s\S]*?<\/div>/gi, '')
+      }
+      if (html === data.html) {
+        return { block, changed: false }
+      }
+      const next = Object.assign({}, block, {
+        content: JSON.stringify(Object.assign({}, data, { html }))
+      })
+      return { block: next, changed: true }
+    },
     resetRichEditorDirty() {
       const editor = this.$refs.contentRichEditor
       if (editor) {
@@ -1045,12 +1224,19 @@ export default {
       this.resetRichEditorDirty()
       Object.keys(grouped).forEach(outlineId => {
         this.$set(this.contentMap, outlineId, grouped[outlineId] || [])
+        this.$delete(this.generatingOutlineIds, String(outlineId))
       })
+      Object.keys(grouped).forEach(outlineId => {
+        this.$delete(this.streamingTextMap, String(outlineId))
+      })
+      this.streamingOutlineId = undefined
+      this.updateStreamingPreviewDom('')
     },
     appendGeneratedContentChunk(payload) {
       const outlineId = payload && payload.outlineId
       const chunk = payload && payload.content
       if (!outlineId || chunk == null || chunk === '') return
+      this.ensureStreamingContentVisible(outlineId)
       const key = String(outlineId)
       const current = this.contentMap[key] || this.contentMap[outlineId] || []
       const streamId = 'stream-' + key
@@ -1064,13 +1250,63 @@ export default {
       }
       const data = this.parseContent(target)
       data.text = (data.text || '') + String(chunk)
+      this.streamingOutlineId = key
+      this.$set(this.streamingTextMap, key, data.text)
       target.content = JSON.stringify(data)
       const next = index >= 0 ? current.slice() : current.concat(target)
       if (index >= 0) {
         next.splice(index, 1, target)
       }
       this.resetRichEditorDirty()
-      this.$set(this.contentMap, outlineId, next)
+      this.$set(this.contentMap, key, next)
+      this.updateStreamingPreviewDom(data.text)
+      this.refreshStreamingEditor(outlineId, data.text)
+    },
+    clearStreamingPreview() {
+      this.streamingTextMap = {}
+      this.streamingOutlineId = undefined
+      this.updateStreamingPreviewDom('')
+    },
+    updateStreamingPreviewDom(text) {
+      if (this.$refs.streamingPreview) {
+        this.$refs.streamingPreview.textContent = text || ''
+        this.$refs.streamingPreview.scrollTop = this.$refs.streamingPreview.scrollHeight
+        return
+      }
+      this.$nextTick(() => {
+        if (this.$refs.streamingPreview) {
+          this.$refs.streamingPreview.textContent = text || ''
+          this.$refs.streamingPreview.scrollTop = this.$refs.streamingPreview.scrollHeight
+        }
+      })
+    },
+    ensureStreamingContentVisible(outlineId) {
+      if (this.selectedContentNode) return
+      const node = this.findTreeNode(this.tree, outlineId)
+      if (node) {
+        this.selectedContentNode = node
+      }
+    },
+    isOutlineInsideNode(node, outlineId) {
+      if (!node) return false
+      if (String(node.id) === String(outlineId)) return true
+      return (node.children || []).some(child => this.isOutlineInsideNode(child, outlineId))
+    },
+    refreshStreamingEditor(outlineId, text) {
+      this.$nextTick(() => {
+        const editor = this.$refs.contentRichEditor
+        if (!editor || !this.selectedContentNode || !this.isOutlineInsideNode(this.selectedContentNode, outlineId)) {
+          return
+        }
+        editor.dirty = false
+        if (String(this.selectedContentNode.id) === String(outlineId) && typeof editor.setExternalStreamingText === 'function') {
+          editor.setExternalStreamingText(text || '')
+          return
+        }
+        if (typeof editor.loadBlocksToEditor === 'function') {
+          editor.loadBlocksToEditor()
+        }
+      })
     },
     runEditorTool(action) {
       const editor = this.$refs.contentRichEditor
@@ -1184,6 +1420,13 @@ export default {
     },
     isNodeGenerated(node) {
       return this.nodeGeneratedWords(node) > 0
+    },
+    isNodeGenerating(node) {
+      if (!node) return false
+      if (node.children && node.children.length) {
+        return node.children.some(child => this.isNodeGenerating(child))
+      }
+      return !!this.generatingOutlineIds[String(node.id)]
     },
     isSelectedContentNode(node) {
       return !!this.selectedContentNode && String(this.selectedContentNode.id) === String(node.id)
@@ -1551,22 +1794,44 @@ export default {
   color: #a8abb2;
 }
 .preview-actions {
-  min-height: 86px;
+  min-height: 118px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 0;
+  gap: 10px;
+  padding: 12px 12px;
   background: #fff;
   border-top: 1px solid #e7ebf3;
 }
-.preview-actions .el-button {
+.action-row {
   width: 100%;
-  max-width: 400px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px 48px;
+  gap: 10px;
+}
+.export-all-button,
+.continue-button {
+  width: 100%;
+  border: 0;
+  background: linear-gradient(135deg, #2f6dff, #7a45ff);
+}
+.square-action-button {
+  width: 48px;
+  padding-left: 0;
+  padding-right: 0;
+  border-color: #7fb6ff;
+  color: #2386ff;
+  background: #fff;
+}
+.preview-actions .continue-button {
+  width: 100%;
+}
+.generating-count-icon {
+  color: #2f86ff;
+  font-size: 14px;
 }
 .preview-actions .generating-button {
-  max-width: 430px;
   border: 0;
   background: linear-gradient(135deg, #2f6dff, #6c42ff);
 }
@@ -1713,6 +1978,18 @@ export default {
 .content-editor-shell.rich-editor-shell {
   height: auto;
   flex: 1;
+}
+.streaming-preview {
+  flex: 0 0 auto;
+  max-height: 220px;
+  overflow: auto;
+  padding: 18px 28px;
+  border-bottom: 1px solid #e5eaf3;
+  background: #fbfdff;
+  color: #1f2937;
+  font-size: 15px;
+  line-height: 1.9;
+  white-space: pre-wrap;
 }
 .content-editor-shell ::v-deep .rich-content-editor {
   height: 100%;

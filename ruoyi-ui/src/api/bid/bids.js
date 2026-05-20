@@ -80,7 +80,22 @@ export function uploadPlanMaterial(bidId, file, stage) {
 export function parsePlanMaterial(fileId) {
   return request({
     url: '/tdw/tender/parse/' + fileId,
-    method: 'post'
+    method: 'post',
+    timeout: 600000
+  })
+}
+
+export function getPlanReport(id) {
+  return request({
+    url: '/tdw/tender/report/' + id,
+    method: 'get'
+  })
+}
+
+export function getPlanReportByFile(tenderFileId) {
+  return request({
+    url: '/tdw/tender/report/byFile/' + tenderFileId,
+    method: 'get'
   })
 }
 

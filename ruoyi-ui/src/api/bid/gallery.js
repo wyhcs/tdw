@@ -25,7 +25,8 @@ export function uploadGalleryImage(data) {
     url: '/tdw/tool/image/upload',
     method: 'post',
     data,
-    headers: { 'Content-Type': 'multipart/form-data' }
+    timeout: 120000,
+    headers: { repeatSubmit: false, 'Content-Type': 'multipart/form-data' }
   })
 }
 
@@ -34,7 +35,8 @@ export function extractDocImage(data) {
     url: '/tdw/tool/image/extractDoc',
     method: 'post',
     data,
-    headers: { 'Content-Type': 'multipart/form-data' }
+    timeout: 120000,
+    headers: { repeatSubmit: false, 'Content-Type': 'multipart/form-data' }
   })
 }
 

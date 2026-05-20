@@ -12,12 +12,15 @@ public class TdwDuplicateFile extends BaseEntity
     private Long id;
     private Long taskId;
     private Long bidId;
+    private String fileRole;
     private String fileName;
     private String originalName;
     private String fileUrl;
     private Long fileSize;
     private String fileType;
     private String parseStatus;
+    private String extractedText;
+    private String enabled;
     private String delFlag;
 
     public Long getId() { return id; }
@@ -26,6 +29,8 @@ public class TdwDuplicateFile extends BaseEntity
     public void setTaskId(Long taskId) { this.taskId = taskId; }
     public Long getBidId() { return bidId; }
     public void setBidId(Long bidId) { this.bidId = bidId; }
+    public String getFileRole() { return fileRole; }
+    public void setFileRole(String fileRole) { this.fileRole = fileRole; }
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
     public String getOriginalName() { return originalName; }
@@ -38,6 +43,10 @@ public class TdwDuplicateFile extends BaseEntity
     public void setFileType(String fileType) { this.fileType = fileType; }
     public String getParseStatus() { return parseStatus; }
     public void setParseStatus(String parseStatus) { this.parseStatus = parseStatus; }
+    public String getExtractedText() { return extractedText; }
+    public void setExtractedText(String extractedText) { this.extractedText = extractedText; }
+    public String getEnabled() { return enabled; }
+    public void setEnabled(String enabled) { this.enabled = enabled; }
     public String getDelFlag() { return delFlag; }
     public void setDelFlag(String delFlag) { this.delFlag = delFlag; }
 }

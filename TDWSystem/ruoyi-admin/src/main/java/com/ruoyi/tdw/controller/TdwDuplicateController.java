@@ -9,7 +9,7 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.tdw.domain.TdwDuplicateFile;
 import com.ruoyi.tdw.domain.TdwDuplicateResult;
 import com.ruoyi.tdw.domain.TdwDuplicateTask;
-import com.ruoyi.tdw.service.ITdwDownloadService;
+import com.ruoyi.tdw.domain.dto.TdwDuplicateRunRequest;
 import com.ruoyi.tdw.service.ITdwDuplicateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,9 +29,6 @@ public class TdwDuplicateController extends BaseController
 {
     @Autowired
     private ITdwDuplicateService duplicateService;
-
-    @Autowired
-    private ITdwDownloadService downloadService;
 
     @GetMapping("/task/list")
     public TableDataInfo taskList(TdwDuplicateTask query)
@@ -55,7 +52,7 @@ public class TdwDuplicateController extends BaseController
 
     @PostMapping("/task/create")
     public AjaxResult createTask(@RequestParam(value = "taskName", required = false) String taskName,
-                                 @RequestParam("bidId") Long bidId,
+                                 @RequestParam(value = "bidId", required = false) Long bidId,
                                  @RequestParam(value = "compareBidId", required = false) Long compareBidId,
                                  @RequestParam(value = "file", required = false) MultipartFile file) throws IOException
     {
@@ -72,16 +69,35 @@ public class TdwDuplicateController extends BaseController
         return success(duplicateService.uploadCompareFile(taskId, file));
     }
 
-    @PostMapping("/task/{taskId}/run")
-    public AjaxResult runTask(@PathVariable Long taskId)
+    @PostMapping("/task/{taskId}/uploadBatch")
+    public AjaxResult uploadFiles(@PathVariable Long taskId, @RequestParam("files") MultipartFile[] files) throws IOException
     {
-        return success(duplicateService.runDuplicateTask(taskId));
+        return success(duplicateService.uploadCompareFiles(taskId, files));
+    }
+
+    @PostMapping("/task/{taskId}/libraries")
+    public AjaxResult updateLibraries(@PathVariable Long taskId, @RequestBody TdwDuplicateRunRequest request)
+    {
+        List<Long> libraryIds = request == null ? null : request.getCompareLibraryIds();
+        return toAjax(duplicateService.updateCompareLibraries(taskId, libraryIds));
+    }
+
+    @PostMapping("/task/{taskId}/run")
+    public AjaxResult runTask(@PathVariable Long taskId, @RequestBody(required = false) TdwDuplicateRunRequest request)
+    {
+        return success(duplicateService.runDuplicateTask(taskId, request));
     }
 
     @DeleteMapping("/task/{ids}")
     public AjaxResult removeTask(@PathVariable Long[] ids)
     {
         return toAjax(duplicateService.deleteDuplicateTaskByIds(ids));
+    }
+
+    @DeleteMapping("/file/{ids}")
+    public AjaxResult removeFile(@PathVariable Long[] ids)
+    {
+        return toAjax(duplicateService.deleteDuplicateFileByIds(ids));
     }
 
     @GetMapping("/file/list")
@@ -98,9 +114,15 @@ public class TdwDuplicateController extends BaseController
         return getDataTable(list);
     }
 
+    @GetMapping("/task/{taskId}/report")
+    public AjaxResult report(@PathVariable Long taskId) throws IOException
+    {
+        return success(duplicateService.selectDuplicateReport(taskId));
+    }
+
     @PostMapping("/task/{taskId}/exportReport")
     public AjaxResult exportReport(@PathVariable Long taskId) throws IOException
     {
-        return success(downloadService.exportReport("duplicate", taskId));
+        return success(duplicateService.exportDuplicateReport(taskId));
     }
 }

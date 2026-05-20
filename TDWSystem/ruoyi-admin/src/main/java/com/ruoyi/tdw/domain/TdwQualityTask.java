@@ -14,6 +14,7 @@ public class TdwQualityTask extends BaseEntity
     private String taskName;
     private Long bidId;
     private Long frameworkId;
+    private Long bidFileId;
     private String sourceModule;
     private String status;
     private Integer totalCount;
@@ -30,6 +31,8 @@ public class TdwQualityTask extends BaseEntity
     public void setBidId(Long bidId) { this.bidId = bidId; }
     public Long getFrameworkId() { return frameworkId; }
     public void setFrameworkId(Long frameworkId) { this.frameworkId = frameworkId; }
+    public Long getBidFileId() { return bidFileId; }
+    public void setBidFileId(Long bidFileId) { this.bidFileId = bidFileId; }
     public String getSourceModule() { return sourceModule; }
     public void setSourceModule(String sourceModule) { this.sourceModule = sourceModule; }
     public String getStatus() { return status; }

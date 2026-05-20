@@ -32,10 +32,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by create_time desc, id desc
     </select>
 
+    <select id="selectLatestByBidIdAndStage" resultMap="TdwTenderFileResult">
+        select id, bid_id, file_name, original_name, file_url, file_size, file_type, file_stage, parse_status, parse_report_id, create_time, update_time
+        from tdw_tender_file
+        where bid_id = #{bidId}
+          and file_stage = #{fileStage}
+        order by update_time desc, id desc
+        limit 1
+    </select>
+
     <select id="selectTenderBidList" parameterType="TdwBids" resultMap="com.ruoyi.tdw.mapper.TdwBidsMapper.TdwBidsResult">
         select b.id, b.title, b.template_id, b.status, b.category, b.created_time, b.userid, b.deptid, b.unitid, b.note
-        from tdw_bids b inner join tdw_tender_file f on b.id = f.bid_id
+        from tdw_bids b
         <where>
+            and exists (
+                select 1
+                from tdw_tender_file f
+                where f.bid_id = b.id
+            )
             <if test="title != null and title != ''"> and b.title like concat('%', #{title}, '%')</if>
             <if test="category != null and category != ''"> and b.category = #{category}</if>
             <if test="status != null"> and b.status = #{status}</if>
@@ -47,6 +61,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         insert into tdw_tender_file(bid_id, file_name, original_name, file_url, file_size, file_type, file_stage, parse_status, parse_report_id, create_time, update_time)
         values(#{bidId}, #{fileName}, #{originalName}, #{fileUrl}, #{fileSize}, #{fileType}, #{fileStage}, #{parseStatus}, #{parseReportId}, #{createTime}, #{updateTime})
     </insert>
+
+    <update id="updateTenderFileStorage" parameterType="TdwTenderFile">
+        update tdw_tender_file
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="fileName != null">file_name = #{fileName},</if>
+            <if test="originalName != null">original_name = #{originalName},</if>
+            <if test="fileUrl != null">file_url = #{fileUrl},</if>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="fileType != null">file_type = #{fileType},</if>
+            <if test="fileStage != null">file_stage = #{fileStage},</if>
+            <if test="parseStatus != null">parse_status = #{parseStatus},</if>
+            <if test="parseReportId != null">parse_report_id = #{parseReportId},</if>
+            update_time = now(),
+        </trim>
+        where id = #{id}
+    </update>
 
     <update id="updateParseStatus">
         update tdw_tender_file

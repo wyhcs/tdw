@@ -21,7 +21,7 @@ public interface ITdwTenderService
 
     TdwTenderFile uploadTenderFile(Long bidId, MultipartFile file, String fileStage) throws IOException;
 
-    TdwTenderParseReport mockParse(Long tenderFileId);
+    TdwTenderParseReport parseTenderInterpretation(Long tenderFileId);
 
     TdwServicePlanParseResult parseServicePlan(TdwServicePlanParseRequest request);
 

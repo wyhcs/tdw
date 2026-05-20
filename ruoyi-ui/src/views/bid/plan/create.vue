@@ -1,6 +1,6 @@
 <template>
-  <div class="plan-create-page">
-    <aside class="plan-sidebar">
+  <div class="plan-create-page" :class="{ embedded: embedded }">
+    <aside v-if="!embedded" class="plan-sidebar">
       <div class="side-title">≡ 我的方案</div>
       <el-input
         v-model="planQuery"
@@ -56,7 +56,7 @@
 
     <main class="create-main">
       <header class="step-header">
-        <el-button size="mini" icon="el-icon-arrow-left" @click="$router.push('/bid/plan')">退出新建</el-button>
+        <el-button size="mini" icon="el-icon-arrow-left" @click="handleExitCreate">退出新建</el-button>
         <div class="steps">
           <div v-for="step in steps" :key="step.value" class="step-item" :class="{ active: activeStep >= step.value }">
             <span>{{ step.value }}</span>
@@ -551,6 +551,8 @@ import {
   deleteBid,
   getBids,
   getLatestPlanReport,
+  getPlanReport,
+  getPlanReportByFile,
   listBids,
   listPlanMaterials,
   parsePlanMaterial,
@@ -595,6 +597,28 @@ const createCustomChapter = () => ({
 export default {
   name: 'BidPlanCreate',
   components: { WordPresetDialog },
+  props: {
+    embedded: {
+      type: Boolean,
+      default: false
+    },
+    initialBidId: {
+      type: [String, Number],
+      default: undefined
+    },
+    initialTenderFileId: {
+      type: [String, Number],
+      default: undefined
+    },
+    initialTenderReportId: {
+      type: [String, Number],
+      default: undefined
+    },
+    sourceModule: {
+      type: String,
+      default: ''
+    }
+  },
   data() {
     return {
       activeStep: 1,
@@ -845,20 +869,45 @@ export default {
   },
   watch: {
     '$route.query.bidId'(value) {
+      if (this.embedded) return
       if (value) {
         this.loadExistingPlan(value)
       } else if (this.bidId) {
         this.resetCreate(false)
       }
+    },
+    initialBidId(value) {
+      if (!this.embedded) return
+      if (value) {
+        this.loadExistingPlan(value)
+      } else {
+        this.resetCreate(false)
+      }
+    },
+    initialTenderFileId() {
+      if (this.embedded && this.initialBidId) {
+        this.loadExistingPlan(this.initialBidId)
+      }
+    },
+    initialTenderReportId() {
+      if (this.embedded && this.initialBidId) {
+        this.loadExistingPlan(this.initialBidId)
+      }
     }
   },
   created() {
-    this.loadPlans()
-    if (this.$route.query.bidId) {
-      this.loadExistingPlan(this.$route.query.bidId)
+    if (!this.embedded) {
+      this.loadPlans()
+    }
+    const bidId = this.currentBidId()
+    if (bidId) {
+      this.loadExistingPlan(bidId)
     }
   },
   methods: {
+    currentBidId() {
+      return this.embedded ? this.initialBidId : this.$route.query.bidId
+    },
     loadPlans() {
       return listBids({ pageNum: 1, pageSize: 100, title: this.planQuery || undefined }).then(res => {
         this.planList = res.rows || []
@@ -957,7 +1006,7 @@ export default {
         fields: createEmptyFields()
       }
       this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
-      if (updateRoute && this.$route.query.bidId) {
+      if (updateRoute && !this.embedded && this.$route.query.bidId) {
         this.$router.replace({ path: '/bid/plan/create' }).catch(() => {})
       }
     },
@@ -965,14 +1014,15 @@ export default {
       if (!bidId) return Promise.resolve()
       this.resetCreate(false)
       this.bidId = bidId
+      const preferredFileId = this.resolveRouteTenderFileId()
       return Promise.all([
         getBids(bidId),
         listPlanMaterials(bidId).catch(() => ({ data: [] })),
-        getLatestPlanReport(bidId).catch(() => ({ data: null })),
+        this.loadRoutePlanReport(bidId, preferredFileId),
         getOutlineTree(bidId).catch(() => ({ data: [] }))
       ]).then(([bidRes, filesRes, reportRes, outlineRes]) => {
         this.applyBidInfo(bidRes.data || {})
-        this.applyMaterialFiles(filesRes.data || [])
+        this.applyMaterialFiles(filesRes.data || [], preferredFileId)
         this.applyParseReport(reportRes.data)
         this.outlineTree = outlineRes.data || []
         if (this.outlineRows.length) {
@@ -984,6 +1034,29 @@ export default {
         }
         this.$nextTick(() => this.$refs.form && this.$refs.form.clearValidate())
       })
+    },
+    resolveRouteTenderFileId() {
+      return this.embedded
+        ? this.initialTenderFileId
+        : (this.$route.query.tenderFileId || this.$route.query.fileId)
+    },
+    resolveRouteTenderReportId() {
+      return this.embedded
+        ? this.initialTenderReportId
+        : (this.$route.query.tenderReportId || this.$route.query.parseReportId || this.$route.query.reportId)
+    },
+    loadRoutePlanReport(bidId, preferredFileId) {
+      const preferredReportId = this.resolveRouteTenderReportId()
+      if (preferredReportId) {
+        return getPlanReport(preferredReportId).catch(() => this.loadPlanReportByFileOrLatest(bidId, preferredFileId))
+      }
+      return this.loadPlanReportByFileOrLatest(bidId, preferredFileId)
+    },
+    loadPlanReportByFileOrLatest(bidId, preferredFileId) {
+      if (preferredFileId) {
+        return getPlanReportByFile(preferredFileId).catch(() => ({ data: null }))
+      }
+      return getLatestPlanReport(bidId).catch(() => ({ data: null }))
     },
     applyBidInfo(bid) {
       if (!bid || !bid.id) return
@@ -1028,16 +1101,19 @@ export default {
       const useKnowledge = valueOf('知识库增强')
       if (useKnowledge) this.form.useKnowledge = useKnowledge === '启用'
     },
-    applyMaterialFiles(files) {
+    applyMaterialFiles(files, preferredFileId) {
       const fileList = files || []
-      const mainFile = fileList.find(file => file.fileStage === 'outline_source') || fileList[0]
+      const preferredFile = preferredFileId
+        ? fileList.find(file => String(file.id) === String(preferredFileId))
+        : null
+      const mainFile = preferredFile || fileList.find(file => file.fileStage === 'outline_source') || fileList[0]
       if (mainFile) {
         this.tenderFileId = mainFile.id
         this.form.file = { name: mainFile.originalName || mainFile.fileName }
         this.tenderFileList = [this.toUploadListItem(mainFile)]
       }
       fileList.forEach(file => {
-        if (!file || !file.fileStage || file === mainFile) return
+        if (!file || !file.fileStage || (mainFile && String(file.id) === String(mainFile.id))) return
         if (file.fileStage === 'content_prompt') {
           this.promptFileList = [this.toUploadListItem(file)]
           this.promptReportId = file.parseReportId || this.promptReportId
@@ -2018,6 +2094,13 @@ export default {
     levelText(level) {
       return Number(level) === 1 ? '章' : Number(level) === 2 ? '节' : '目'
     },
+    handleExitCreate() {
+      if (this.embedded) {
+        this.$emit('exit')
+        return
+      }
+      this.$router.push('/bid/plan')
+    },
     openEditor(row) {
       if (!row || !row.id) return
       if (String(row.id) === String(this.bidId)) return
@@ -2048,6 +2131,12 @@ export default {
   grid-template-columns: 220px minmax(0, 1fr);
   overflow: hidden;
   background: #f5f7fb;
+}
+.plan-create-page.embedded {
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  background: #fff;
 }
 .plan-sidebar {
   border-right: 1px solid #dfe4ee;

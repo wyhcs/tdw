@@ -262,7 +262,7 @@ export const dynamicRoutes = [
     path: '/bid/tender/parse',
     component: Layout,
     hidden: true,
-    permissions: ['bid:tender:query'],
+    permissions: ['bid:tender:list', 'bid:tender:query'],
     children: [
       {
         path: '',

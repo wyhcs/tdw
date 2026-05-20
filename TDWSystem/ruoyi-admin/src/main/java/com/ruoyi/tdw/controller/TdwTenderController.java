@@ -2,18 +2,23 @@ package com.ruoyi.tdw.controller;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import javax.servlet.http.HttpServletResponse;
 
 import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.tdw.domain.TdwBids;
+import com.ruoyi.tdw.domain.dto.TdwBidDocumentGenerateRequest;
+import com.ruoyi.tdw.domain.dto.TdwBidDocumentSaveRequest;
 import com.ruoyi.tdw.domain.dto.TdwServiceFieldParseRequest;
 import com.ruoyi.tdw.domain.dto.TdwServicePlanParseRequest;
 import com.ruoyi.tdw.domain.dto.TdwServicePlanParseResult;
 import com.ruoyi.tdw.domain.dto.TdwTechnicalScoreExtractRequest;
+import com.ruoyi.tdw.service.ITdwBidDocumentService;
 import com.ruoyi.tdw.service.ITdwDownloadService;
 import com.ruoyi.tdw.service.ITdwTenderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +45,9 @@ public class TdwTenderController extends BaseController
 
     @Autowired
     private ITdwDownloadService downloadService;
+
+    @Autowired
+    private ITdwBidDocumentService bidDocumentService;
 
     @GetMapping("/list")
     public TableDataInfo list(TdwBids query)
@@ -69,7 +77,13 @@ public class TdwTenderController extends BaseController
     @PostMapping("/parse/{tenderFileId}")
     public AjaxResult parse(@PathVariable Long tenderFileId)
     {
-        return success(tdwTenderService.mockParse(tenderFileId));
+        return success(tdwTenderService.parseTenderInterpretation(tenderFileId));
+    }
+
+    @PostMapping("/parse/interpretation/{tenderFileId}")
+    public AjaxResult parseInterpretation(@PathVariable Long tenderFileId)
+    {
+        return success(tdwTenderService.parseTenderInterpretation(tenderFileId));
     }
 
     @PostMapping(value = "/parse/service/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -260,6 +274,46 @@ public class TdwTenderController extends BaseController
     public AjaxResult latestReport(@PathVariable Long bidId)
     {
         return success(tdwTenderService.selectLatestReportByBidId(bidId));
+    }
+
+    @GetMapping("/bid-document/latest/{bidId}")
+    public AjaxResult latestBidDocument(@PathVariable Long bidId)
+    {
+        return success(bidDocumentService.selectLatestBidDocument(bidId));
+    }
+
+    @PostMapping("/bid-document/generate/{bidId}")
+    public AjaxResult generateBidDocument(@PathVariable Long bidId,
+                                          @RequestBody(required = false) TdwBidDocumentGenerateRequest request) throws IOException
+    {
+        return success(bidDocumentService.generateBidDocument(bidId, request));
+    }
+
+    @PostMapping("/bid-document/save/{fileId}")
+    public AjaxResult saveBidDocument(@PathVariable Long fileId,
+                                      @RequestBody TdwBidDocumentSaveRequest request) throws IOException
+    {
+        return success(bidDocumentService.saveBidDocument(fileId, request));
+    }
+
+    @GetMapping("/bid-document/onlyoffice/config/{fileId}")
+    public AjaxResult onlyOfficeConfig(@PathVariable Long fileId)
+    {
+        return success(bidDocumentService.buildOnlyOfficeConfig(fileId));
+    }
+
+    @GetMapping("/bid-document/onlyoffice/file/{fileId}")
+    public void onlyOfficeFile(@PathVariable Long fileId, HttpServletResponse response) throws IOException
+    {
+        bidDocumentService.writeOnlyOfficeDocument(fileId, response);
+    }
+
+    @PostMapping("/bid-document/onlyoffice/callback/{fileId}")
+    public Map<String, Object> onlyOfficeCallback(@PathVariable Long fileId,
+                                                  @RequestBody(required = false) Map<String, Object> payload) throws IOException
+    {
+        bidDocumentService.handleOnlyOfficeCallback(fileId, payload);
+        return java.util.Collections.<String, Object>singletonMap("error", 0);
     }
 
     @PostMapping("/report/{id}/export")
